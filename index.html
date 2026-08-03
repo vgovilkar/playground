@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Playground - Agentic Coding</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #0a0a0a; color: #e5e5e5; }
+    h1 { font-size: 2.5rem; }
+    .card { border: 1px solid #333; padding: 20px; border-radius: 12px; margin: 16px 0; background: #171717; }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .badge { background: #222; padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Playground</h1>
+  <p>Experiments for agentic coding — hosted via GitHub Pages + deployable to old MacBook cloud node</p>
+  <p><span class="badge">Muse Spark 1.1</span> <span class="badge">OpenCode</span> <span class="badge">Phone Vibe Coding</span></p>
+
+  <div class="card">
+    <h3>How this works</h3>
+    <ul>
+      <li>Push static apps to <code>/apps/&lt;name&gt;/</code> folder</li>
+      <li>GitHub Pages serves at <code>https://vgovilkar.github.io/playground/</code></li>
+      <li>Dynamic apps: agent deploys on old MacBook at <code>http://100.x.y.z:4096</code> via Tailscale</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Apps</h3>
+    <ul id="apps">
+      <li><a href="./apps/hello/">hello — starter example</a></li>
+    </ul>
+    <p>Agent: add new app via "create app xyz in playground/apps/xyz with index.html"</p>
+  </div>
+
+  <div class="card">
+    <h3>Infra</h3>
+    <p>Private infra: <a href="https://github.com/vgovilkar/opencode-personal-cloud">opencode-personal-cloud</a> (Muse Spark + phone PWA)</p>
+  </div>
+</body>
+</html>
