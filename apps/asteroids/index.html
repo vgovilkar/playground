@@ -36,9 +36,9 @@
 <div id="tapIndicator"></div>
 <div id="center">
   <h1>ASTEROIDS</h1>
-  <p><strong style="color:#38bdf8">INFINITE</strong> • Density, HP and Score scale forever</p>
-  <p style="font-size:13px">Level up every 45s (slower) • Collect powerups every 500pts</p>
-  <p style="font-size:12px; opacity:0.6"><span style="color:#38bdf8">⚡ RAPID FIRE 2x</span> • <span style="color:#e879f9">◈ SPREAD 3-way</span> — 10s, stackable</p>
+  <p><strong style="color:#38bdf8">INFINITE</strong> • Score-based progression (gradual)</p>
+  <p style="font-size:13px">Level up every 1200 pts • Slower: density +0.3, speed +0.06, HP +0.25 per lvl</p>
+  <p style="font-size:12px; opacity:0.6"><span style="color:#38bdf8">⚡ RAPID FIRE 2x</span> • <span style="color:#e879f9">◈ SPREAD 3-way</span> — 10s, stackable every 500pts</p>
   <p style="font-size:11px; opacity:0.5">Ship wraps • Asteroids split • Tap anywhere thrust, auto-fire</p>
   <button class="primary" id="startBtn">▶ PLAY</button>
   <p id="highScoreTxt" style="margin-top:18px;font-size:12px;color:#facc15"></p>
@@ -66,9 +66,9 @@ function randPoly(radius, irregularity){ const n=7+Math.floor(Math.random()*5); 
 
 function spawnAsteroid(edge=true, forcedR=null){
   const level=state.level;
-  const baseR=forcedR|| (30+Math.random()*40 + level*0.8);
-  const hp = Math.max(1, Math.floor(1 + level*0.4 + Math.random()*level*0.3 + (baseR>45?1:0)));
-  const speed = (0.6 + Math.random()*1.0 + level*0.10) * (0.7+Math.random()*0.5);
+  const baseR=forcedR|| (30+Math.random()*40 + level*0.5);
+  const hp = Math.max(1, Math.floor(1 + level*0.25 + Math.random()*level*0.2 + (baseR>48?1:0)));
+  const speed = (0.55 + Math.random()*0.9 + level*0.06) * (0.7+Math.random()*0.4);
   let x,y,ang;
   if(edge){ const side=Math.floor(Math.random()*4); if(side===0){x=-60; y=Math.random()*H; ang=Math.random()*0.8-0.4} else if(side===1){x=W+60; y=Math.random()*H; ang=Math.PI+Math.random()*0.8-0.4} else if(side===2){x=Math.random()*W; y=-60; ang=Math.PI/2+Math.random()*0.8-0.4} else {x=Math.random()*W; y=H+60; ang=-Math.PI/2+Math.random()*0.8-0.4} } else { x=ship.x + (Math.random()>0.5?1:-1)*(200+Math.random()*W*0.3); y=ship.y + (Math.random()>0.5?1:-1)*(200+Math.random()*H*0.3); ang=Math.random()*Math.PI*2; }
   state.asteroids.push({ x,y, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed, r:baseR, hp, maxHp:hp, poly:randPoly(baseR,1), rot:Math.random()*Math.PI*2, rotV:(Math.random()-0.5)*0.04, hitFlash:0 });
@@ -76,16 +76,16 @@ function spawnAsteroid(edge=true, forcedR=null){
 
 function levelConfig(l){
   return {
-    spawnInterval: Math.max(500, 2100 - l*80),
-    density: Math.floor(3 + l*0.5),
-    speedMult: 1 + l*0.07,
-    hpBonus: Math.floor(l*0.4)
+    spawnInterval: Math.max(900, 2400 - l*40),
+    density: Math.floor(2 + l*0.3),
+    speedMult: 1 + l*0.04,
+    hpBonus: Math.floor(l*0.25)
   };
 }
 
 function addScore(asteroid){
-  const base = asteroid.maxHp * (asteroid.r>40? 35 : asteroid.r>25? 20 : 10);
-  const mult = 1 + state.level*0.18 + state.time/90000;
+  const base = asteroid.maxHp * (asteroid.r>40? 32 : asteroid.r>25? 18 : 9);
+  const mult = 1 + state.level*0.10 + state.time/180000;
   const pts = Math.floor(base*mult);
   state.score+=pts;
   state.particles.push({ x:asteroid.x, y:asteroid.y, vx:(Math.random()-0.5)*1.2, vy:-1.2, life:60, max:60, type:'text', txt:`+${pts}`, color:'#facc15' });
@@ -171,7 +171,8 @@ function update(dt, dtNorm){
   if(state.active.rapid<0) state.active.rapid=0;
   if(state.active.spread<0) state.active.spread=0;
 
-  const newLevel=1+Math.floor(state.time/45000);
+  // Difficulty now scales by SCORE, more gradual
+  const newLevel=1+Math.floor(state.score/1200);
   if(newLevel!==state.level){ state.level=newLevel; state.particles.push({ x:W/2, y:100, vx:0, vy:-0.5, life:120, max:120, type:'text', txt:`LEVEL ${state.level}`, color:'#38bdf8' }); }
   const cfg=levelConfig(state.level);
   state.spawnInterval=cfg.spawnInterval;
@@ -180,7 +181,7 @@ function update(dt, dtNorm){
     const count=1+Math.floor(Math.random()*(cfg.density>4?2:1));
     for(let i=0;i<count;i++) spawnAsteroid(true);
     state.lastSpawn=performance.now();
-    if(Math.random()<0.08+state.level*0.015){ for(let i=0;i<1+Math.floor(state.level/4);i++) spawnAsteroid(true, 20+Math.random()*25); }
+    if(Math.random()<0.05+state.level*0.01){ for(let i=0;i<1+Math.floor(state.level/6);i++) spawnAsteroid(true, 20+Math.random()*25); }
   }
 
   // bullets - framerate independent
