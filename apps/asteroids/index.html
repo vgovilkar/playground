@@ -17,15 +17,15 @@
   #center p { opacity:0.7; margin:6px 0; text-align:center; max-width:360px; line-height:1.5; }
   button.primary { margin-top:20px; padding:14px 28px; border-radius:999px; border:1px solid #38bdf8; background:#0c4a6e; color:#fff; font-family:inherit; font-size:16px; cursor:pointer; box-shadow:0 0 20px rgba(56,189,248,0.4); }
   button.primary:active { transform:scale(0.97); }
-  #controls { position:absolute; bottom:0; left:0; right:0; height:170px; display:flex; justify-content:space-between; align-items:flex-end; padding:0 12px 12px; z-index:15; pointer-events:none; }
+  #controls { position:absolute; bottom:0; left:0; right:0; height:140px; display:flex; justify-content:flex-end; align-items:flex-end; padding:0 18px 18px; z-index:15; pointer-events:none; }
   .touch-group { display:flex; gap:10px; align-items:flex-end; pointer-events:auto; }
   .tbtn { width:62px; height:62px; border-radius:50%; border:1px solid rgba(255,255,255,0.2); background:rgba(255,255,255,0.06); color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; backdrop-filter:blur(8px); }
   .tbtn:active { background:rgba(56,189,248,0.3); border-color:#38bdf8; }
-  #thrustBtn { width:78px; height:78px; }
-  #shootBtn { width:92px; height:92px; background:rgba(250,204,21,0.12); border-color:rgba(250,204,21,0.4); font-size:28px; box-shadow:0 0 20px rgba(250,204,21,0.2); }
-  #shootBtn:active { background:rgba(250,204,21,0.3); }
-  #touchNote { position:absolute; bottom:180px; left:0; right:0; text-align:center; opacity:0.35; font-size:11px; letter-spacing:0.1em; pointer-events:none; }
-  @media (min-width:768px) { #controls { display:none; } #touchNote { display:none; } }
+  #shootBtn { width:110px; height:110px; background:rgba(250,204,21,0.18); border:2px solid rgba(250,204,21,0.5); font-size:32px; box-shadow:0 0 24px rgba(250,204,21,0.35), inset 0 0 20px rgba(250,204,21,0.1); }
+  #shootBtn:active { background:rgba(250,204,21,0.4); transform:scale(0.96); }
+  #touchNote { position:absolute; bottom:150px; left:0; right:0; text-align:center; opacity:0.4; font-size:11px; letter-spacing:0.1em; pointer-events:none; line-height:1.4; }
+  @media (min-width:768px) { #touchNote { display:block; opacity:0.25; bottom:20px; } #controls { pointer-events:none; } #shootBtn { display:none; } }
+  #tapIndicator { position:absolute; width:44px; height:44px; border:2px dashed rgba(56,189,248,0.6); border-radius:50%; pointer-events:none; transform:translate(-50%,-50%); display:none; z-index:12; }
 </style>
 </head>
 <body>
@@ -34,17 +34,13 @@
   <div><span id="level">LVL 1</span> • <span id="score">0</span> • <span id="lives">♥♥♥</span></div>
   <div id="stats">AST: 0 | FPS: 60</div>
 </div>
-<div id="touchNote">KEYBOARD: WASD/ARROWS + SPACE • PHONE: USE BUTTONS BELOW</div>
+<div id="touchNote">DESKTOP: WASD/ARROWS THRUST/ROTATE + SPACE SHOOT • PHONE: TAP ANYWHERE TO THRUST TOWARD TAP • BIG YELLOW BUTTON = FIRE</div>
 <div id="controls">
   <div class="touch-group">
-    <button class="tbtn" id="leftBtn">↺</button>
-    <button class="tbtn" id="thrustBtn">▲</button>
-    <button class="tbtn" id="rightBtn">↻</button>
-  </div>
-  <div class="touch-group">
-    <button class="tbtn" id="shootBtn">◎</button>
+    <button class="tbtn" id="shootBtn">FIRE</button>
   </div>
 </div>
+<div id="tapIndicator"></div>
 <div id="center">
   <h1>ASTEROIDS</h1>
   <p><strong style="color:#38bdf8">INFINITE</strong> • Density, HP and Score scale forever</p>
@@ -61,7 +57,7 @@ let W,H,DPR;
 function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight; canvas.width=W*DPR; canvas.height=H*DPR; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); }
 resize(); addEventListener('resize',resize);
 
-const state={ running:false, score:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], keys:{}, touch:{left:false,right:false,thrust:false,shoot:false}, lastTime:0, fps:60 };
+const state={ running:false, score:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], keys:{}, touch:{shoot:false, thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
 
 const ship={ x:0,y:0, angle:-Math.PI/2, vx:0,vy:0, r:14, inv:0, thrusting:false, cooldown:0 };
 
@@ -108,9 +104,32 @@ function explode(x,y, r, color='#38bdf8', count= 12){
 }
 
 function updateKeys(){
-  if(state.keys['ArrowLeft']||state.keys['a']||state.touch.left) ship.angle-=0.08;
-  if(state.keys['ArrowRight']||state.keys['d']||state.touch.right) ship.angle+=0.08;
-  if(state.keys['ArrowUp']||state.keys['w']||state.touch.thrust){ ship.thrusting=true; const thrust=0.18; ship.vx+=Math.cos(ship.angle)*thrust; ship.vy+=Math.sin(ship.angle)*thrust; if(Math.random()<0.6) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 }); } else ship.thrusting=false;
+  // tap-to-thrust steering: ship turns toward tap point and thrusts
+  if(state.touch.active && state.running){
+    const dx=state.touch.tx - ship.x, dy=state.touch.ty - ship.y;
+    const targetAng=Math.atan2(dy,dx);
+    let diff=targetAng - ship.angle; diff=Math.atan2(Math.sin(diff), Math.cos(diff));
+    ship.angle+=diff*0.14; // smooth turn toward tap
+    // thrust
+    ship.thrusting=true;
+    const thrust=0.19;
+    ship.vx+=Math.cos(ship.angle)*thrust;
+    ship.vy+=Math.sin(ship.angle)*thrust;
+    if(Math.random()<0.7) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 });
+  } else {
+    // keyboard rotate
+    if(state.keys['ArrowLeft']||state.keys['a']) ship.angle-=0.08;
+    if(state.keys['ArrowRight']||state.keys['d']) ship.angle+=0.08;
+    if(state.keys['ArrowUp']||state.keys['w']){ ship.thrusting=true; const thrust=0.18; ship.vx+=Math.cos(ship.angle)*thrust; ship.vy+=Math.sin(ship.angle)*thrust; if(Math.random()<0.6) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 }); } else if(!state.touch.active) ship.thrusting=false;
+  }
+  // mouse hold thrust toward cursor (desktop intuitive)
+  if(state.touch.thrust && !state.touch.active){
+    ship.thrusting=true;
+    const thrust=0.17;
+    ship.vx+=Math.cos(ship.angle)*thrust;
+    ship.vy+=Math.sin(ship.angle)*thrust;
+  }
+
   if((state.keys[' ']||state.keys['Space']||state.touch.shoot) && ship.cooldown<=0 && state.running){ state.bullets.push({ x: ship.x + Math.cos(ship.angle)*ship.r, y: ship.y + Math.sin(ship.angle)*ship.r, vx: Math.cos(ship.angle)*7 + ship.vx*0.3, vy: Math.sin(ship.angle)*7 + ship.vy*0.3, life:60 }); ship.cooldown=9; }
   ship.vx*=0.99; ship.vy*=0.99;
   ship.x+=ship.vx; ship.y+=ship.vy; wrap(ship);
@@ -212,11 +231,61 @@ document.getElementById('startBtn').onclick=startGame;
 addEventListener('keydown',e=>{ state.keys[e.key]=true; if(e.key===' ' ) e.preventDefault(); if(!state.running && (e.key==='Enter'||e.key===' ')) startGame(); });
 addEventListener('keyup',e=>state.keys[e.key]=false);
 
-function bindTouch(id, key){ const el=document.getElementById(id); if(!el) return; const set=v=>{ state.touch[key]=v; }; el.addEventListener('touchstart',e=>{ e.preventDefault(); set(true); },{passive:false}); el.addEventListener('touchend',e=>{ e.preventDefault(); set(false); },{passive:false}); el.addEventListener('mousedown',()=>set(true)); el.addEventListener('mouseup',()=>set(false)); el.addEventListener('mouseleave',()=>set(false)); }
-bindTouch('leftBtn','left'); bindTouch('rightBtn','right'); bindTouch('thrustBtn','thrust'); bindTouch('shootBtn','shoot');
+function bindTouch(id, key){ const el=document.getElementById(id); if(!el) return; const set=v=>{ state.touch[key]=v; }; el.addEventListener('touchstart',e=>{ e.preventDefault(); set(true); },{passive:false}); el.addEventListener('touchend',e=>{ e.preventDefault(); set(false); },{passive:false}); el.addEventListener('mousedown',()=>set(true)); el.addEventListener('mouseup',()=>set(false)); el.addEventListener('mouseleave',()=>set(false)); el.addEventListener('touchcancel',()=>set(false)); }
+bindTouch('shootBtn','shoot');
 
-canvas.addEventListener('touchstart',e=>{ if(!state.running) return; const t=e.touches[0]; if(t.clientX > W*0.5) state.touch.shoot=true; },{passive:false});
-canvas.addEventListener('touchend',e=>{ state.touch.shoot=false; },{passive:false});
+// Tap-anywhere thrust toward tap
+const indicator=document.getElementById('tapIndicator');
+let mouseDown=false;
+function isShootBtnTarget(t){ return t && (t.id==='shootBtn' || t.closest && t.closest('#shootBtn')); }
+
+function setThrustTarget(clientX, clientY){
+  if(!state.running) return;
+  state.touch.tx=clientX; state.touch.ty=clientY; state.touch.active=true;
+  indicator.style.left=clientX+'px'; indicator.style.top=clientY+'px'; indicator.style.display='block';
+}
+function clearThrust(){ state.touch.active=false; state.touch.thrust=false; indicator.style.display='none'; }
+
+canvas.addEventListener('touchstart',e=>{
+  if(!state.running) return;
+  const t=e.touches[0];
+  if(isShootBtnTarget(e.target)) return;
+  // if touch is on shoot btn area, don't thrust
+  setThrustTarget(t.clientX, t.clientY);
+},{passive:false});
+
+canvas.addEventListener('touchmove',e=>{
+  if(!state.running) return;
+  if(!state.touch.active) return;
+  const t=e.touches[0];
+  setThrustTarget(t.clientX, t.clientY);
+},{passive:false});
+
+canvas.addEventListener('touchend',e=>{
+  // keep thrust if other fingers still down (multi-touch: one finger thrust, other shoot)
+  if(e.touches.length===0) clearThrust();
+  else { const t=e.touches[0]; setThrustTarget(t.clientX, t.clientY); }
+},{passive:false});
+
+// Desktop mouse: click/drag anywhere to thrust toward cursor (intuitive like phone)
+canvas.addEventListener('mousedown',e=>{
+  if(!state.running) return;
+  if(isShootBtnTarget(e.target)) return;
+  if(e.button!==0) return;
+  mouseDown=true;
+  setThrustTarget(e.clientX, e.clientY);
+  state.touch.thrust=true;
+});
+canvas.addEventListener('mousemove',e=>{
+  if(!mouseDown) return;
+  setThrustTarget(e.clientX, e.clientY);
+});
+canvas.addEventListener('mouseup',e=>{
+  mouseDown=false;
+  state.touch.thrust=false;
+  if(e.touches===undefined) clearThrust();
+});
+canvas.addEventListener('mouseleave',()=>{ mouseDown=false; state.touch.thrust=false; clearThrust(); });
 
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) { /* pause not implemented */ } });
 </script>
