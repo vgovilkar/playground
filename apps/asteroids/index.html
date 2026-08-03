@@ -103,29 +103,28 @@ function explode(x,y, r, color='#38bdf8', count= 12){
   for(let i=0;i<r/8;i++){ state.particles.push({ x,y, vx:(Math.random()-0.5)*6, vy:(Math.random()-0.5)*6, life:40+Math.random()*20, max:60, type:'chunk', color, size:1+Math.random()*2 }); }
 }
 
-function updateKeys(){
+function updateKeys(dtNorm){
   // tap-to-thrust steering: ship turns toward tap point and thrusts
   if(state.touch.active && state.running){
     const dx=state.touch.tx - ship.x, dy=state.touch.ty - ship.y;
     const targetAng=Math.atan2(dy,dx);
     let diff=targetAng - ship.angle; diff=Math.atan2(Math.sin(diff), Math.cos(diff));
-    ship.angle+=diff*0.14; // smooth turn toward tap
-    // thrust — slightly lower for tap to prevent runaway
+    ship.angle+=diff*0.14*dtNorm; // smooth turn toward tap, framerate independent
     ship.thrusting=true;
-    const thrust=0.12;
+    const thrust=0.12*dtNorm;
     ship.vx+=Math.cos(ship.angle)*thrust;
     ship.vy+=Math.sin(ship.angle)*thrust;
     if(Math.random()<0.7) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 });
   } else {
     // keyboard rotate
-    if(state.keys['ArrowLeft']||state.keys['a']) ship.angle-=0.08;
-    if(state.keys['ArrowRight']||state.keys['d']) ship.angle+=0.08;
-    if(state.keys['ArrowUp']||state.keys['w']){ ship.thrusting=true; const thrust=0.18; ship.vx+=Math.cos(ship.angle)*thrust; ship.vy+=Math.sin(ship.angle)*thrust; if(Math.random()<0.6) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 }); } else if(!state.touch.active) ship.thrusting=false;
+    if(state.keys['ArrowLeft']||state.keys['a']) ship.angle-=0.08*dtNorm;
+    if(state.keys['ArrowRight']||state.keys['d']) ship.angle+=0.08*dtNorm;
+    if(state.keys['ArrowUp']||state.keys['w']){ ship.thrusting=true; const thrust=0.18*dtNorm; ship.vx+=Math.cos(ship.angle)*thrust; ship.vy+=Math.sin(ship.angle)*thrust; if(Math.random()<0.6) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 }); } else if(!state.touch.active) ship.thrusting=false;
   }
   // mouse hold thrust toward cursor (desktop intuitive)
   if(state.touch.thrust && !state.touch.active){
     ship.thrusting=true;
-    const thrust=0.17;
+    const thrust=0.17*dtNorm;
     ship.vx+=Math.cos(ship.angle)*thrust;
     ship.vy+=Math.sin(ship.angle)*thrust;
   }
@@ -133,16 +132,16 @@ function updateKeys(){
   if((state.keys[' ']||state.keys['Space']||state.touch.shoot) && ship.cooldown<=0 && state.running){ state.bullets.push({ x: ship.x + Math.cos(ship.angle)*ship.r, y: ship.y + Math.sin(ship.angle)*ship.r, vx: Math.cos(ship.angle)*7 + ship.vx*0.3, vy: Math.sin(ship.angle)*7 + ship.vy*0.3, life:60 }); ship.cooldown=9; }
   // friction + max speed cap — fix mobile "speeding up"
   const friction = ship.thrusting ? 0.99 : 0.985;
-  ship.vx*=friction; ship.vy*=friction;
+  ship.vx*=Math.pow(friction, dtNorm); ship.vy*=Math.pow(friction, dtNorm);
   const maxSpeed = 5.5;
   const spd = Math.hypot(ship.vx, ship.vy);
   if(spd > maxSpeed){ ship.vx = (ship.vx/spd)*maxSpeed; ship.vy = (ship.vy/spd)*maxSpeed; }
-  ship.x+=ship.vx; ship.y+=ship.vy; wrap(ship);
-  if(ship.cooldown>0) ship.cooldown--;
-  if(ship.inv>0) ship.inv--;
+  ship.x+=ship.vx*dtNorm; ship.y+=ship.vy*dtNorm; wrap(ship);
+  if(ship.cooldown>0) ship.cooldown-=dtNorm;
+  if(ship.inv>0) ship.inv-=dtNorm;
 }
 
-function update(dt){
+function update(dt, dtNorm){
   state.time+=dt;
   const newLevel=1+Math.floor(state.time/30000);
   if(newLevel!==state.level){ state.level=newLevel; state.particles.push({ x:W/2, y:100, vx:0, vy:-0.5, life:120, max:120, type:'text', txt:`LEVEL ${state.level}`, color:'#38bdf8' }); }
@@ -157,19 +156,19 @@ function update(dt){
     if(Math.random()<0.12+state.level*0.02){ for(let i=0;i<2+Math.floor(state.level/3);i++) spawnAsteroid(true, 20+Math.random()*25); }
   }
 
-  // bullets
-  for(let i=state.bullets.length-1;i>=0;i--){ const b=state.bullets[i]; b.x+=b.vx; b.y+=b.vy; b.life--; if(b.life<=0|| b.x<-100||b.x>W+100||b.y<-100||b.y>H+100) state.bullets.splice(i,1); }
+  // bullets - framerate independent
+  for(let i=state.bullets.length-1;i>=0;i--){ const b=state.bullets[i]; b.x+=b.vx*dtNorm; b.y+=b.vy*dtNorm; b.life-=dtNorm; if(b.life<=0|| b.x<-100||b.x>W+100||b.y<-100||b.y>H+100) state.bullets.splice(i,1); }
 
-  // asteroids
-  for(let i=state.asteroids.length-1;i>=0;i--){ const a=state.asteroids[i]; a.x+=a.vx; a.y+=a.vy; a.rot+=a.rotV; wrap(a); if(a.hitFlash>0) a.hitFlash--; // bullet hits
+  // asteroids - framerate independent movement
+  for(let i=state.asteroids.length-1;i>=0;i--){ const a=state.asteroids[i]; a.x+=a.vx*dtNorm; a.y+=a.vy*dtNorm; a.rot+=a.rotV*dtNorm; wrap(a); if(a.hitFlash>0) a.hitFlash-=dtNorm; // bullet hits
     for(let j=state.bullets.length-1;j>=0;j--){ const b=state.bullets[j]; const dx=b.x-a.x, dy=b.y-a.y; if(dx*dx+dy*dy < a.r*a.r){ state.bullets.splice(j,1); a.hp--; a.hitFlash=6; explode(b.x,b.y,4, a.maxHp>2?'#f87171':'#38bdf8', 3); if(a.hp<=0){ addScore(a); explode(a.x,a.y,a.r, a.maxHp>2?'#fb7185':'#e2e8f0', Math.floor(a.r/2.5)); // split
       if(a.r>22){ const kids= a.r>40?3:2; for(let k=0;k<kids;k++){ const nr=a.r*0.55; const nang=Math.random()*Math.PI*2; const nspd= (Math.random()*1+0.6)*(1+state.level*0.05); state.asteroids.push({ x:a.x + Math.cos(nang)*10, y:a.y + Math.sin(nang)*10, vx: a.vx*0.5 + Math.cos(nang)*nspd, vy: a.vy*0.5 + Math.sin(nang)*nspd, r:nr, hp: Math.max(1, Math.floor(a.maxHp*0.6)), maxHp: Math.max(1, Math.floor(a.maxHp*0.6)), poly:randPoly(nr,1), rot:Math.random()*Math.PI*2, rotV:(Math.random()-0.5)*0.08, hitFlash:0 }); } } state.asteroids.splice(i,1); break; } } }
     // ship collision
     if(state.running && ship.inv<=0){ const dx=ship.x-a.x, dy=ship.y-a.y; if(dx*dx+dy*dy < (a.r+ship.r)*(a.r+ship.r)*0.7){ state.lives--; explode(ship.x,ship.y, ship.r, '#ffffff', 24); resetShip(); state.particles.push({ x:W/2, y:H/2, vx:0, vy:0, life:90, max:90, type:'text', txt: state.lives>0?`HIT! -1 LIFE`:`DESTROYED`, color:'#fb7185' }); if(state.lives<=0){ gameOver(); } break; } }
   }
 
-  // particles
-  for(let i=state.particles.length-1;i>=0;i--){ const p=state.particles[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.02; p.life--; if(p.life<=0) state.particles.splice(i,1); }
+  // particles - framerate independent
+  for(let i=state.particles.length-1;i>=0;i--){ const p=state.particles[i]; p.x+=p.vx*dtNorm; p.y+=p.vy*dtNorm; p.vy+=0.02*dtNorm; p.life-=dtNorm; if(p.life<=0) state.particles.splice(i,1); }
 
   levelUi.textContent=`LVL ${state.level}`; scoreUi.textContent=`${state.score}`; livesUi.textContent='♥'.repeat(state.lives)+'♡'.repeat(3-state.lives); statsUi.textContent=`AST: ${state.asteroids.length} | RATE: ${(1000/state.spawnInterval*60).toFixed(1)}/m | x${(1+state.level*0.22).toFixed(1)}`;
 }
@@ -211,8 +210,10 @@ function draw(){
 
 let last=0, fpsAcc=0, fpsCount=0;
 function loop(t){
-  const dt=Math.min(33, t-last); last=t; fpsAcc+=1000/dt; fpsCount++; if(fpsCount>30){ state.fps=Math.round(fpsAcc/fpsCount); fpsAcc=0; fpsCount=0; }
-  if(state.running){ updateKeys(); update(dt); }
+  if(!last) last=t;
+  const dt=Math.min(33, t-last); const dtNorm=dt/16.666; last=t;
+  fpsAcc+=1000/Math.max(dt,1); fpsCount++; if(fpsCount>30){ state.fps=Math.round(fpsAcc/fpsCount); fpsAcc=0; fpsCount=0; }
+  if(state.running){ updateKeys(dtNorm); update(dt, dtNorm); }
   draw();
   requestAnimationFrame(loop);
 }
