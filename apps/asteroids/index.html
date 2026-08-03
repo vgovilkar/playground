@@ -19,6 +19,10 @@
   button.primary:active { transform:scale(0.97); }
   #touchNote { position:absolute; bottom:20px; left:0; right:0; text-align:center; opacity:0.35; font-size:11px; letter-spacing:0.1em; pointer-events:none; line-height:1.4; }
   #tapIndicator { position:absolute; width:44px; height:44px; border:2px dashed rgba(56,189,248,0.6); border-radius:50%; pointer-events:none; transform:translate(-50%,-50%); display:none; z-index:12; }
+  #powerups { position:absolute; top:60px; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:10; pointer-events:none; }
+  .pup-badge { padding:6px 12px; border-radius:999px; font-size:12px; font-weight:bold; backdrop-filter:blur(8px); border:1px solid; display:flex; align-items:center; gap:6px; }
+  .pup-rapid { background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.5); color:#38bdf8; box-shadow:0 0 12px rgba(56,189,248,0.3); }
+  .pup-spread { background:rgba(232,121,249,0.15); border-color:rgba(232,121,249,0.5); color:#e879f9; box-shadow:0 0 12px rgba(232,121,249,0.3); }
 </style>
 </head>
 <body>
@@ -27,13 +31,15 @@
   <div><span id="level">LVL 1</span> • <span id="score">0</span> • <span id="lives">♥♥♥</span></div>
   <div id="stats">AST: 0 | FPS: 60</div>
 </div>
-<div id="touchNote">TAP ANYWHERE TO THRUST TOWARD TAP • AUTO-FIRING • WASD/ARROWS + SPACE ALSO WORKS</div>
+<div id="powerups"></div>
+<div id="touchNote">TAP ANYWHERE TO THRUST TOWARD TAP • AUTO-FIRING • COLLECT ⚡ RAPID & ◈ SPREAD EVERY 500PTS</div>
 <div id="tapIndicator"></div>
 <div id="center">
   <h1>ASTEROIDS</h1>
   <p><strong style="color:#38bdf8">INFINITE</strong> • Density, HP and Score scale forever</p>
-  <p style="font-size:13px">Level up every 30s: more asteroids, tougher hull, faster, more points</p>
-  <p style="font-size:12px; opacity:0.5">Ship wraps • Asteroids split • Touch + Keyboard</p>
+  <p style="font-size:13px">Level up every 45s (slower) • Collect powerups every 500pts</p>
+  <p style="font-size:12px; opacity:0.6"><span style="color:#38bdf8">⚡ RAPID FIRE 2x</span> • <span style="color:#e879f9">◈ SPREAD 3-way</span> — 10s, stackable</p>
+  <p style="font-size:11px; opacity:0.5">Ship wraps • Asteroids split • Tap anywhere thrust, auto-fire</p>
   <button class="primary" id="startBtn">▶ PLAY</button>
   <p id="highScoreTxt" style="margin-top:18px;font-size:12px;color:#facc15"></p>
   <p style="margin-top:12px;font-size:11px"><a href="../../" style="color:#64748b">← playground</a> • <a href="../hello/" style="color:#64748b">hello demo</a></p>
@@ -45,7 +51,7 @@ let W,H,DPR;
 function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight; canvas.width=W*DPR; canvas.height=H*DPR; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); }
 resize(); addEventListener('resize',resize);
 
-const state={ running:false, score:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], keys:{}, touch:{thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
+const state={ running:false, score:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], powerups:[], active:{rapid:0, spread:0}, nextPowerupScore:500, keys:{}, touch:{thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
 
 const ship={ x:0,y:0, angle:-Math.PI/2, vx:0,vy:0, r:14, inv:0, thrusting:false, cooldown:0 };
 
@@ -60,9 +66,9 @@ function randPoly(radius, irregularity){ const n=7+Math.floor(Math.random()*5); 
 
 function spawnAsteroid(edge=true, forcedR=null){
   const level=state.level;
-  const baseR=forcedR|| (30+Math.random()*40 + level*1.2);
-  const hp = Math.max(1, Math.floor(1 + level*0.6 + Math.random()*level*0.4 + (baseR>45?1:0)));
-  const speed = (0.6 + Math.random()*1.2 + level*0.18) * (0.7+Math.random()*0.6);
+  const baseR=forcedR|| (30+Math.random()*40 + level*0.8);
+  const hp = Math.max(1, Math.floor(1 + level*0.4 + Math.random()*level*0.3 + (baseR>45?1:0)));
+  const speed = (0.6 + Math.random()*1.0 + level*0.10) * (0.7+Math.random()*0.5);
   let x,y,ang;
   if(edge){ const side=Math.floor(Math.random()*4); if(side===0){x=-60; y=Math.random()*H; ang=Math.random()*0.8-0.4} else if(side===1){x=W+60; y=Math.random()*H; ang=Math.PI+Math.random()*0.8-0.4} else if(side===2){x=Math.random()*W; y=-60; ang=Math.PI/2+Math.random()*0.8-0.4} else {x=Math.random()*W; y=H+60; ang=-Math.PI/2+Math.random()*0.8-0.4} } else { x=ship.x + (Math.random()>0.5?1:-1)*(200+Math.random()*W*0.3); y=ship.y + (Math.random()>0.5?1:-1)*(200+Math.random()*H*0.3); ang=Math.random()*Math.PI*2; }
   state.asteroids.push({ x,y, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed, r:baseR, hp, maxHp:hp, poly:randPoly(baseR,1), rot:Math.random()*Math.PI*2, rotV:(Math.random()-0.5)*0.04, hitFlash:0 });
@@ -70,20 +76,40 @@ function spawnAsteroid(edge=true, forcedR=null){
 
 function levelConfig(l){
   return {
-    spawnInterval: Math.max(280, 2100 - l*140),
-    density: Math.floor(3 + l*0.9),
-    speedMult: 1 + l*0.12,
-    hpBonus: Math.floor(l*0.6)
+    spawnInterval: Math.max(500, 2100 - l*80),
+    density: Math.floor(3 + l*0.5),
+    speedMult: 1 + l*0.07,
+    hpBonus: Math.floor(l*0.4)
   };
 }
 
 function addScore(asteroid){
   const base = asteroid.maxHp * (asteroid.r>40? 35 : asteroid.r>25? 20 : 10);
-  const mult = 1 + state.level*0.22 + state.time/60000;
+  const mult = 1 + state.level*0.18 + state.time/90000;
   const pts = Math.floor(base*mult);
   state.score+=pts;
-  // floating text
   state.particles.push({ x:asteroid.x, y:asteroid.y, vx:(Math.random()-0.5)*1.2, vy:-1.2, life:60, max:60, type:'text', txt:`+${pts}`, color:'#facc15' });
+  checkPowerupMilestone();
+}
+
+function spawnPowerup(type=null){
+  if(!type) type = Math.random()<0.5 ? 'rapid' : 'spread';
+  const x = 80 + Math.random()*(W-160);
+  const y = 80 + Math.random()*(H-240);
+  const ang=Math.random()*Math.PI*2;
+  state.powerups.push({ x,y, vx: Math.cos(ang)*0.3, vy: Math.sin(ang)*0.3, r:18, type, life: 720, maxLife:720, rot:0, pulse:0 });
+  state.particles.push({ x:W/2, y:70, vx:0, vy:-0.3, life:90, max:90, type:'text', txt: type==='rapid'?'⚡ RAPID POWERUP!':'◈ SPREAD POWERUP!', color: type==='rapid'?'#38bdf8':'#e879f9' });
+}
+
+function checkPowerupMilestone(){
+  while(state.score >= state.nextPowerupScore){
+    if(Math.random() < 0.30){
+      spawnPowerup();
+    } else {
+      state.particles.push({ x:W/2, y:50, vx:0, vy:-0.2, life:60, max:60, type:'text', txt:`${state.nextPowerupScore} PTS`, color:'#64748b' });
+    }
+    state.nextPowerupScore+=500;
+  }
 }
 
 function explode(x,y, r, color='#38bdf8', count= 12){
@@ -117,8 +143,16 @@ function updateKeys(dtNorm){
     ship.vy+=Math.sin(ship.angle)*thrust;
   }
 
-  // continuous auto-fire
-  if(state.running && ship.cooldown<=0){ state.bullets.push({ x: ship.x + Math.cos(ship.angle)*ship.r, y: ship.y + Math.sin(ship.angle)*ship.r, vx: Math.cos(ship.angle)*7 + ship.vx*0.3, vy: Math.sin(ship.angle)*7 + ship.vy*0.3, life:60 }); ship.cooldown=9; }
+  // continuous auto-fire - reduced default rate 9->14, rapid powerup 14->6
+  const baseCooldown = state.active.rapid>0 ? 6 : 14;
+  if(state.running && ship.cooldown<=0){
+    const angles = state.active.spread>0 ? [-0.26, 0, 0.26] : [0];
+    for(const off of angles){
+      const ang = ship.angle + off;
+      state.bullets.push({ x: ship.x + Math.cos(ang)*ship.r, y: ship.y + Math.sin(ang)*ship.r, vx: Math.cos(ang)*7 + ship.vx*0.3, vy: Math.sin(ang)*7 + ship.vy*0.3, life:60 });
+    }
+    ship.cooldown=baseCooldown;
+  }
   // friction + max speed cap — fix mobile "speeding up"
   const friction = ship.thrusting ? 0.99 : 0.985;
   ship.vx*=Math.pow(friction, dtNorm); ship.vy*=Math.pow(friction, dtNorm);
@@ -132,17 +166,21 @@ function updateKeys(dtNorm){
 
 function update(dt, dtNorm){
   state.time+=dt;
-  const newLevel=1+Math.floor(state.time/30000);
+  if(state.active.rapid>0) state.active.rapid-=dt;
+  if(state.active.spread>0) state.active.spread-=dt;
+  if(state.active.rapid<0) state.active.rapid=0;
+  if(state.active.spread<0) state.active.spread=0;
+
+  const newLevel=1+Math.floor(state.time/45000);
   if(newLevel!==state.level){ state.level=newLevel; state.particles.push({ x:W/2, y:100, vx:0, vy:-0.5, life:120, max:120, type:'text', txt:`LEVEL ${state.level}`, color:'#38bdf8' }); }
   const cfg=levelConfig(state.level);
   state.spawnInterval=cfg.spawnInterval;
 
   if(state.running && performance.now()-state.lastSpawn > state.spawnInterval){
-    const count=1+Math.floor(Math.random()*(cfg.density>5?2:1));
+    const count=1+Math.floor(Math.random()*(cfg.density>4?2:1));
     for(let i=0;i<count;i++) spawnAsteroid(true);
     state.lastSpawn=performance.now();
-    // extra pressure: occasional wave
-    if(Math.random()<0.12+state.level*0.02){ for(let i=0;i<2+Math.floor(state.level/3);i++) spawnAsteroid(true, 20+Math.random()*25); }
+    if(Math.random()<0.08+state.level*0.015){ for(let i=0;i<1+Math.floor(state.level/4);i++) spawnAsteroid(true, 20+Math.random()*25); }
   }
 
   // bullets - framerate independent
@@ -156,10 +194,35 @@ function update(dt, dtNorm){
     if(state.running && ship.inv<=0){ const dx=ship.x-a.x, dy=ship.y-a.y; if(dx*dx+dy*dy < (a.r+ship.r)*(a.r+ship.r)*0.7){ state.lives--; explode(ship.x,ship.y, ship.r, '#ffffff', 24); resetShip(); state.particles.push({ x:W/2, y:H/2, vx:0, vy:0, life:90, max:90, type:'text', txt: state.lives>0?`HIT! -1 LIFE`:`DESTROYED`, color:'#fb7185' }); if(state.lives<=0){ gameOver(); } break; } }
   }
 
+  // powerups - floating and collection
+  for(let i=state.powerups.length-1;i>=0;i--){
+    const pu=state.powerups[i];
+    pu.x+=pu.vx*dtNorm; pu.y+=pu.vy*dtNorm; pu.rot+=0.03*dtNorm; pu.pulse+=0.08*dtNorm; pu.life-=dtNorm;
+    wrap(pu);
+    if(pu.life<=0){ state.powerups.splice(i,1); continue; }
+    // collect
+    if(state.running){ const dx=ship.x-pu.x, dy=ship.y-pu.y; if(dx*dx+dy*dy < (pu.r+ship.r)*(pu.r+ship.r)){ 
+      // activate 10s
+      state.active[pu.type]=10000;
+      state.score+=50;
+      explode(pu.x,pu.y,16, pu.type==='rapid' ? '#38bdf8' : '#e879f9', 18);
+      state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:60, max:60, type:'text', txt: pu.type==='rapid'?'RAPID 2x!':'SPREAD 3x!', color: pu.type==='rapid'?'#38bdf8':'#e879f9' });
+      state.powerups.splice(i,1);
+    } }
+  }
+
   // particles - framerate independent
   for(let i=state.particles.length-1;i>=0;i--){ const p=state.particles[i]; p.x+=p.vx*dtNorm; p.y+=p.vy*dtNorm; p.vy+=0.02*dtNorm; p.life-=dtNorm; if(p.life<=0) state.particles.splice(i,1); }
 
-  levelUi.textContent=`LVL ${state.level}`; scoreUi.textContent=`${state.score}`; livesUi.textContent='♥'.repeat(state.lives)+'♡'.repeat(3-state.lives); statsUi.textContent=`AST: ${state.asteroids.length} | RATE: ${(1000/state.spawnInterval*60).toFixed(1)}/m | x${(1+state.level*0.22).toFixed(1)}`;
+  // UI
+  levelUi.textContent=`LVL ${state.level}`; scoreUi.textContent=`${state.score}`; livesUi.textContent='♥'.repeat(state.lives)+'♡'.repeat(3-state.lives);
+  statsUi.textContent=`AST: ${state.asteroids.length} | RATE: ${(1000/state.spawnInterval*60).toFixed(1)}/m | NEXT PU: ${state.nextPowerupScore}`;
+  // powerup badges
+  const puDiv=document.getElementById('powerups');
+  let html='';
+  if(state.active.rapid>0) html+=`<div class="pup-badge pup-rapid">⚡ RAPID ${(state.active.rapid/1000).toFixed(1)}s</div>`;
+  if(state.active.spread>0) html+=`<div class="pup-badge pup-spread">◈ SPREAD ${(state.active.spread/1000).toFixed(1)}s</div>`;
+  puDiv.innerHTML=html;
 }
 
 function draw(){
@@ -178,10 +241,38 @@ function draw(){
     if(a.maxHp>1){ ctx.shadowBlur=0; ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(-a.r, -a.r-12, a.r*2, 4); ctx.fillStyle= hpPct<0.4?'#ef4444':'#22c55e'; ctx.fillRect(-a.r, -a.r-12, a.r*2*hpPct, 4); ctx.fillStyle='#fff'; ctx.font='10px monospace'; ctx.textAlign='center'; ctx.fillText(`${a.hp}`,0,-a.r-18); }
     ctx.restore();
   }
+  // powerups
+  for(const pu of state.powerups){
+    const pulse = Math.sin(pu.pulse*2)*0.15+1;
+    const alpha = Math.min(1, pu.life/60);
+    ctx.save(); ctx.translate(pu.x,pu.y); ctx.rotate(pu.rot); ctx.globalAlpha=alpha;
+    const isRapid = pu.type==='rapid';
+    ctx.shadowColor=isRapid?'#38bdf8':'#e879f9'; ctx.shadowBlur=18*pulse;
+    ctx.strokeStyle=isRapid?'#38bdf8':'#e879f9'; ctx.lineWidth=2;
+    // outer glow ring
+    ctx.beginPath(); ctx.arc(0,0, pu.r + 6*Math.sin(pu.pulse*3), 0, Math.PI*2); ctx.stroke();
+    // inner icon
+    ctx.fillStyle=isRapid?'rgba(56,189,248,0.2)':'rgba(232,121,249,0.2)';
+    ctx.beginPath(); ctx.arc(0,0, pu.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#fff'; ctx.font=`bold ${isRapid?16:14}px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(isRapid?'⚡':'◈', 0, 1);
+    // label
+    ctx.font='9px monospace'; ctx.fillStyle=isRapid?'#38bdf8':'#e879f9'; ctx.fillText(isRapid?'RAPID':'SPREAD', 0, pu.r+14);
+    ctx.restore();
+  }
   // bullets
   ctx.fillStyle='#facc15'; ctx.shadowColor='#facc15'; ctx.shadowBlur=8; for(const b of state.bullets){ ctx.beginPath(); ctx.arc(b.x,b.y,2.5,0,Math.PI*2); ctx.fill(); } ctx.shadowBlur=0;
-  // ship
+  // ship with powerup aura
+  
   if(state.running || state.lives>0){
+    // powerup auras
+    if(state.active.rapid>0 || state.active.spread>0){
+      ctx.save(); ctx.translate(ship.x,ship.y);
+      if(state.active.rapid>0){ ctx.strokeStyle='rgba(56,189,248,0.5)'; ctx.lineWidth=2; ctx.shadowColor='#38bdf8'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(0,0, ship.r+12+Math.sin(state.time*0.01)*3, 0, Math.PI*2); ctx.stroke(); }
+      if(state.active.spread>0){ ctx.strokeStyle='rgba(232,121,249,0.5)'; ctx.lineWidth=2; ctx.shadowColor='#e879f9'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(0,0, ship.r+18+Math.cos(state.time*0.012)*3, 0, Math.PI*2); ctx.stroke(); }
+      ctx.restore();
+    }
     ctx.save(); ctx.translate(ship.x,ship.y); ctx.rotate(ship.angle);
     const flick= ship.inv>0 && Math.floor(ship.inv/6)%2===0;
     if(!flick){ ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.shadowColor='#38bdf8'; ctx.shadowBlur=12; ctx.beginPath(); ctx.moveTo(ship.r,0); ctx.lineTo(-ship.r*0.7, -ship.r*0.7); ctx.lineTo(-ship.r*0.4,0); ctx.lineTo(-ship.r*0.7, ship.r*0.7); ctx.closePath(); ctx.stroke(); if(ship.thrusting){ ctx.strokeStyle='#fb7185'; ctx.shadowColor='#fb7185'; ctx.beginPath(); ctx.moveTo(-ship.r*0.4, -4); ctx.lineTo(-ship.r*1.4 + (Math.random()*6),0); ctx.lineTo(-ship.r*0.4,4); ctx.stroke(); } }
@@ -209,15 +300,16 @@ function loop(t){
 requestAnimationFrame(loop);
 
 function startGame(){
-  state.running=true; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.lastSpawn=performance.now(); state.spawnInterval=2000;
+  state.running=true; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:0, spread:0}; state.nextPowerupScore=500; state.lastSpawn=performance.now(); state.spawnInterval=2000;
   resetShip(); for(let i=0;i<3;i++) spawnAsteroid(false, 40+Math.random()*20);
   center.classList.add('hidden');
+  document.getElementById('powerups').innerHTML='';
 }
 function gameOver(){
   state.running=false;
   if(state.score>high){ high=state.score; localStorage.setItem('asteroids_high', high); highTxt.textContent=`NEW HIGH ${high}!`; } else highTxt.textContent=`HIGH ${high} • SCORE ${state.score}`;
   document.querySelector('#center h1').textContent='GAME OVER';
-  document.querySelector('#center p').innerHTML=`<span style="color:#facc15">Score ${state.score}</span> • Level ${state.level}<br>Time ${Math.floor(state.time/1000)}s • Asteroids density x${(1+state.level*0.22).toFixed(1)} • HP up to ${1+Math.floor(state.level*0.6)}`;
+  document.querySelector('#center p').innerHTML=`<span style="color:#facc15">Score ${state.score}</span> • Level ${state.level}<br>Time ${Math.floor(state.time/1000)}s • Next PU ${state.nextPowerupScore}<br>Max HP ${1+Math.floor(state.level*0.4)} • Rate ${(1000/state.spawnInterval*60).toFixed(1)}/m`;
   document.getElementById('startBtn').textContent='↻ REPLAY';
   center.classList.remove('hidden');
 }
