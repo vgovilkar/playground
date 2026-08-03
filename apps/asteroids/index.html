@@ -110,9 +110,9 @@ function updateKeys(){
     const targetAng=Math.atan2(dy,dx);
     let diff=targetAng - ship.angle; diff=Math.atan2(Math.sin(diff), Math.cos(diff));
     ship.angle+=diff*0.14; // smooth turn toward tap
-    // thrust
+    // thrust — slightly lower for tap to prevent runaway
     ship.thrusting=true;
-    const thrust=0.19;
+    const thrust=0.12;
     ship.vx+=Math.cos(ship.angle)*thrust;
     ship.vy+=Math.sin(ship.angle)*thrust;
     if(Math.random()<0.7) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 });
@@ -131,7 +131,12 @@ function updateKeys(){
   }
 
   if((state.keys[' ']||state.keys['Space']||state.touch.shoot) && ship.cooldown<=0 && state.running){ state.bullets.push({ x: ship.x + Math.cos(ship.angle)*ship.r, y: ship.y + Math.sin(ship.angle)*ship.r, vx: Math.cos(ship.angle)*7 + ship.vx*0.3, vy: Math.sin(ship.angle)*7 + ship.vy*0.3, life:60 }); ship.cooldown=9; }
-  ship.vx*=0.99; ship.vy*=0.99;
+  // friction + max speed cap — fix mobile "speeding up"
+  const friction = ship.thrusting ? 0.99 : 0.985;
+  ship.vx*=friction; ship.vy*=friction;
+  const maxSpeed = 5.5;
+  const spd = Math.hypot(ship.vx, ship.vy);
+  if(spd > maxSpeed){ ship.vx = (ship.vx/spd)*maxSpeed; ship.vy = (ship.vy/spd)*maxSpeed; }
   ship.x+=ship.vx; ship.y+=ship.vy; wrap(ship);
   if(ship.cooldown>0) ship.cooldown--;
   if(ship.inv>0) ship.inv--;
