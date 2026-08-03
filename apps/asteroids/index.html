@@ -245,8 +245,23 @@ const indicator=document.getElementById('tapIndicator');
 let mouseDown=false;
 function isShootBtnTarget(t){ return t && (t.id==='shootBtn' || t.closest && t.closest('#shootBtn')); }
 
+function getShootDeadZone(){
+  const btn=document.getElementById('shootBtn');
+  if(!btn) return null;
+  const r=btn.getBoundingClientRect();
+  const pad=24; // extra dead zone around button
+  return { left:r.left-pad, right:r.right+pad, top:r.top-pad, bottom:r.bottom+pad };
+}
+function isInShootDeadZone(x,y){
+  const z=getShootDeadZone();
+  if(!z) return false;
+  return x>=z.left && x<=z.right && y>=z.top && y<=z.bottom;
+}
+
 function setThrustTarget(clientX, clientY){
   if(!state.running) return;
+  // FIRE button is complete dead zone - no thrust if tap inside it
+  if(isInShootDeadZone(clientX, clientY)) return;
   state.touch.tx=clientX; state.touch.ty=clientY; state.touch.active=true;
   indicator.style.left=clientX+'px'; indicator.style.top=clientY+'px'; indicator.style.display='block';
 }
@@ -254,9 +269,13 @@ function clearThrust(){ state.touch.active=false; state.touch.thrust=false; indi
 
 canvas.addEventListener('touchstart',e=>{
   if(!state.running) return;
-  const t=e.touches[0];
+  // if any touch is inside shoot dead zone, don't thrust - fire button is dead zone
+  for(let i=0;i<e.touches.length;i++){
+    const tt=e.touches[i];
+    if(isInShootDeadZone(tt.clientX, tt.clientY)) return;
+  }
   if(isShootBtnTarget(e.target)) return;
-  // if touch is on shoot btn area, don't thrust
+  const t=e.touches[0];
   setThrustTarget(t.clientX, t.clientY);
 },{passive:false});
 
@@ -277,6 +296,7 @@ canvas.addEventListener('touchend',e=>{
 canvas.addEventListener('mousedown',e=>{
   if(!state.running) return;
   if(isShootBtnTarget(e.target)) return;
+  if(isInShootDeadZone(e.clientX, e.clientY)) return;
   if(e.button!==0) return;
   mouseDown=true;
   setThrustTarget(e.clientX, e.clientY);
@@ -284,6 +304,7 @@ canvas.addEventListener('mousedown',e=>{
 });
 canvas.addEventListener('mousemove',e=>{
   if(!mouseDown) return;
+  if(isInShootDeadZone(e.clientX, e.clientY)){ clearThrust(); return; }
   setThrustTarget(e.clientX, e.clientY);
 });
 canvas.addEventListener('mouseup',e=>{
