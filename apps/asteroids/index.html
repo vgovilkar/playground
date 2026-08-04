@@ -443,11 +443,16 @@ function startGame(){
   initAudio();
   state.running=true; state.awaitingRespawn=false; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:0, spread:0}; state.nextPowerupScore=400; state.lastSpawn=performance.now(); state.spawnInterval=2000;
   resetShip();
+  // restore start screen instructions
   document.querySelector('#center h1').textContent='ASTEROIDS';
   document.querySelector('#center h1').style.color='#fff';
+  const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ Rapid ◈ Spread ♥ Life ☢ Nuke</span>`;
+  const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • Collect ⚡ ◈ ♥ ☢ powerups</span>`;
+  highTxt.textContent=high?`HIGH ${high}`:'No high score yet'; highTxt.style.fontSize=''; highTxt.style.color='#facc15';
   for(let i=0;i<3;i++) spawnAsteroid(false, 22+Math.random()*14);
   center.classList.add('hidden');
   document.getElementById('powerups').innerHTML='';
+  updatePlatformUI();
   playTone(220,'sine',0.2,0.2,440);
 }
 function doRespawn(){
@@ -456,22 +461,36 @@ function doRespawn(){
   state.running=true;
   resetShip();
   center.classList.add('hidden');
-  document.getElementById('startBtn').onclick=startGame;
+  document.getElementById('startBtn').onclick=()=>{ if(state.awaitingRespawn) doRespawn(); else startGame(); };
   document.getElementById('startBtn').textContent='▶ PLAY';
   document.querySelector('#center h1').textContent='ASTEROIDS';
   document.querySelector('#center h1').style.color='#fff';
+  const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ Rapid ◈ Spread ♥ Life ☢ Nuke</span>`;
+  const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • Collect ⚡ ◈ ♥ ☢ powerups</span>`;
+  updatePlatformUI();
 }
 function gameOver(){
   state.running=false;
   state.awaitingRespawn=false;
   if(thrustPlaying && thrustGain){ try{ thrustGain.gain.value=0; }catch{} }
-  // extra dramatic final explosion
   bigDeathExplosion(W/2, H/2);
   playDeath();
-  if(state.score>high){ high=state.score; localStorage.setItem('asteroids_high', high); highTxt.textContent=`NEW HIGH ${high}!`; } else highTxt.textContent=`HIGH ${high} • SCORE ${state.score}`;
-  document.querySelector('#center h1').textContent='GAME OVER';
-  document.querySelector('#center h1').style.color='#fb7185';
-  document.querySelector('#center p').innerHTML=`<span style="color:#facc15">Score ${state.score}</span> • Level ${state.level}<br>Time ${Math.floor(state.time/1000)}s • Next PU ${state.nextPowerupScore}<br>Max HP ${1+Math.floor(state.level*0.25)} • Rate ${(1000/state.spawnInterval*60).toFixed(1)}/m`;
+  const isNewHigh = state.score>high;
+  if(isNewHigh){ high=state.score; localStorage.setItem('asteroids_high', high); }
+  highTxt.textContent = isNewHigh ? `NEW HIGH SCORE!` : `HIGH ${high}`;
+  highTxt.style.fontSize='16px';
+  highTxt.style.color=isNewHigh?'#4ade80':'#facc15';
+  // most prominent score
+  document.querySelector('#center h1').innerHTML=`<span style="font-size:20px; letter-spacing:0.1em; color:#fb7185">GAME OVER</span><br><span style="font-size:54px; color:#facc15; text-shadow:0 0 24px rgba(250,204,21,0.6); line-height:1.1">${state.score}</span><br><span style="font-size:12px; letter-spacing:0.2em; opacity:0.6; color:#e2e8f0">SCORE</span>`;
+  document.querySelector('#center h1').style.color='#fff';
+  // secondary stats less prominent
+  const firstP = document.getElementById('instrMobile');
+  if(firstP){
+    firstP.style.display='block';
+    firstP.innerHTML=`<span style="font-size:12px; opacity:0.5">Level ${state.level} • ${Math.floor(state.time/1000)}s survived • Next PU ${state.nextPowerupScore}</span>`;
+  }
+  const secondP = document.getElementById('instrPC');
+  if(secondP) secondP.style.display='none';
   document.getElementById('startBtn').textContent='↻ REPLAY';
   document.getElementById('startBtn').onclick=startGame;
   center.classList.remove('hidden');
