@@ -500,8 +500,7 @@ document.getElementById('startBtn').onclick=()=>{ if(state.awaitingRespawn) doRe
 addEventListener('keydown',e=>{
   state.keys[e.key]=true;
   if(e.key===' ' ) e.preventDefault();
-  if(state.awaitingRespawn && (e.key==='Enter'||e.key===' '||e.key==='r')){ doRespawn(); }
-  else if(!state.running && !state.awaitingRespawn && (e.key==='Enter'||e.key===' ')) startGame();
+  if(!state.running && !state.awaitingRespawn && (e.key==='Enter'||e.key===' ')) startGame();
 });
 addEventListener('keyup',e=>state.keys[e.key]=false);
 
@@ -517,7 +516,7 @@ function setThrustTarget(clientX, clientY){
 function clearThrust(){ state.touch.active=false; state.touch.thrust=false; indicator.style.display='none'; }
 
 canvas.addEventListener('touchstart',e=>{
-  if(state.awaitingRespawn){ e.preventDefault(); doRespawn(); return; }
+  if(state.awaitingRespawn){ e.preventDefault(); return; }
   if(!state.running) return;
   const t=e.touches[0];
   setThrustTarget(t.clientX, t.clientY);
@@ -535,9 +534,9 @@ canvas.addEventListener('touchend',e=>{
   else { const t=e.touches[0]; setThrustTarget(t.clientX, t.clientY); }
 },{passive:false});
 
-// Desktop mouse: click/drag anywhere to thrust toward cursor, or tap to respawn
+// Desktop mouse: click/drag anywhere to thrust toward cursor
 canvas.addEventListener('mousedown',e=>{
-  if(state.awaitingRespawn){ doRespawn(); return; }
+  if(state.awaitingRespawn) return;
   if(!state.running) return;
   if(e.button!==0) return;
   mouseDown=true;
@@ -574,9 +573,6 @@ function updatePlatformUI(){
 updatePlatformUI();
 addEventListener('resize', updatePlatformUI);
 
-document.getElementById('center').addEventListener('click',e=>{
-  if(state.awaitingRespawn && e.target.id!=='startBtn') doRespawn();
-});
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) { /* pause not implemented */ } });
 </script>
 </body>
