@@ -118,29 +118,29 @@ function explode(x,y, r, color='#38bdf8', count= 12){
 }
 
 function updateKeys(dtNorm){
-  // tap-to-thrust steering: ship turns toward tap point and thrusts
+  // tap-to-thrust: turn first, thrust only when aligned — allows microtweaks without moving
   if(state.touch.active && state.running){
     const dx=state.touch.tx - ship.x, dy=state.touch.ty - ship.y;
+    const dist=Math.hypot(dx,dy);
     const targetAng=Math.atan2(dy,dx);
     let diff=targetAng - ship.angle; diff=Math.atan2(Math.sin(diff), Math.cos(diff));
-    ship.angle+=diff*0.14*dtNorm; // smooth turn toward tap, framerate independent
-    ship.thrusting=true;
-    const thrust=0.12*dtNorm;
-    ship.vx+=Math.cos(ship.angle)*thrust;
-    ship.vy+=Math.sin(ship.angle)*thrust;
-    if(Math.random()<0.7) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 });
+    ship.angle+=diff*0.16*dtNorm; // turn toward tap
+
+    // only thrust once aligned within ~10 deg, and not for tiny micro-tweaks unless held
+    const alignThreshold = 0.18; // ~10 deg
+    const shouldThrust = Math.abs(diff) < alignThreshold && dist > 26;
+    ship.thrusting = shouldThrust;
+    if(shouldThrust){
+      const thrust=0.13*dtNorm;
+      ship.vx+=Math.cos(ship.angle)*thrust;
+      ship.vy+=Math.sin(ship.angle)*thrust;
+      if(Math.random()<0.7) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 });
+    }
   } else {
     // keyboard rotate
     if(state.keys['ArrowLeft']||state.keys['a']) ship.angle-=0.08*dtNorm;
     if(state.keys['ArrowRight']||state.keys['d']) ship.angle+=0.08*dtNorm;
     if(state.keys['ArrowUp']||state.keys['w']){ ship.thrusting=true; const thrust=0.18*dtNorm; ship.vx+=Math.cos(ship.angle)*thrust; ship.vy+=Math.sin(ship.angle)*thrust; if(Math.random()<0.6) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 }); } else if(!state.touch.active) ship.thrusting=false;
-  }
-  // mouse hold thrust toward cursor (desktop intuitive) - desktop only fallback
-  if(state.touch.thrust && !state.touch.active){
-    ship.thrusting=true;
-    const thrust=0.17*dtNorm;
-    ship.vx+=Math.cos(ship.angle)*thrust;
-    ship.vy+=Math.sin(ship.angle)*thrust;
   }
 
   // continuous auto-fire - reduced default rate 9->14, rapid powerup 14->6
@@ -217,7 +217,7 @@ function update(dt, dtNorm){
 
   // UI
   levelUi.textContent=`LVL ${state.level}`; scoreUi.textContent=`${state.score}`; livesUi.textContent='♥'.repeat(state.lives)+'♡'.repeat(3-state.lives);
-  statsUi.textContent=`AST: ${state.asteroids.length} | RATE: ${(1000/state.spawnInterval*60).toFixed(1)}/m | NEXT PU: ${state.nextPowerupScore}`;
+  statsUi.textContent=`AST: ${state.asteroids.length} | NEXT PU: ${state.nextPowerupScore}`;
   // powerup badges
   const puDiv=document.getElementById('powerups');
   let html='';
