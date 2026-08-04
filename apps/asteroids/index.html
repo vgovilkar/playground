@@ -37,7 +37,7 @@
 <div id="tapIndicator"></div>
 <button id="muteBtn" title="Toggle sound">🔊</button>
 <div id="center">
-  <h1>ASTEROIDS</h1>
+  <h1>ASTEROIDS INFINITE</h1>
   <p id="instrMobile" style="font-size:14px; line-height:1.6; display:none"><span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span></p>
   <p id="instrPC" style="font-size:14px; line-height:1.6; display:none"><span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span></p>
   <button class="primary" id="startBtn">▶ PLAY</button>
@@ -502,7 +502,7 @@ function startGame(){
   lastUnlockCount=1; // rapid unlocked at 0
   resetShip();
   // restore start screen instructions
-  document.querySelector('#center h1').textContent='ASTEROIDS';
+  document.querySelector('#center h1').textContent='ASTEROIDS INFINITE';
   document.querySelector('#center h1').style.color='#fff';
   const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span>`;
   const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span>`;
@@ -521,7 +521,7 @@ function doRespawn(){
   center.classList.add('hidden');
   document.getElementById('startBtn').onclick=()=>{ if(state.awaitingRespawn) doRespawn(); else startGame(); };
   document.getElementById('startBtn').textContent='▶ PLAY';
-  document.querySelector('#center h1').textContent='ASTEROIDS';
+  document.querySelector('#center h1').textContent='ASTEROIDS INFINITE';
   document.querySelector('#center h1').style.color='#fff';
   const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span>`;
   const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span>`;
