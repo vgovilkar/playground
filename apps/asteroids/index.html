@@ -36,8 +36,8 @@
 <div id="tapIndicator"></div>
 <div id="center">
   <h1>ASTEROIDS</h1>
-  <p id="instrMobile" style="font-size:14px; line-height:1.6; display:none"><span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:12px; opacity:0.7">Auto-firing • Collect ⚡ ◈</span></p>
-  <p id="instrPC" style="font-size:14px; line-height:1.6; display:none"><span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:12px; opacity:0.7">Auto-firing • Collect powerups</span></p>
+  <p id="instrMobile" style="font-size:14px; line-height:1.6; display:none"><span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ Rapid ◈ Spread ♥ Life ☢ Nuke</span></p>
+  <p id="instrPC" style="font-size:14px; line-height:1.6; display:none"><span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • Collect ⚡ ◈ ♥ ☢ powerups</span></p>
   <button class="primary" id="startBtn">▶ PLAY</button>
   <p id="highScoreTxt" style="margin-top:18px;font-size:12px;color:#facc15"></p>
   <p style="margin-top:12px;font-size:11px"><a href="../../" style="color:#64748b">← playground</a> • <a href="../hello/" style="color:#64748b">hello demo</a></p>
@@ -91,12 +91,20 @@ function addScore(asteroid){
 }
 
 function spawnPowerup(type=null){
-  if(!type) type = Math.random()<0.5 ? 'rapid' : 'spread';
+  if(!type){
+    const r=Math.random();
+    if(r<0.30) type='rapid';
+    else if(r<0.60) type='spread';
+    else if(r<0.80) type='life';
+    else type='nuke';
+  }
   const x = 80 + Math.random()*(W-160);
   const y = 80 + Math.random()*(H-240);
   const ang=Math.random()*Math.PI*2;
   state.powerups.push({ x,y, vx: Math.cos(ang)*0.3, vy: Math.sin(ang)*0.3, r:18, type, life: 720, maxLife:720, rot:0, pulse:0 });
-  state.particles.push({ x:W/2, y:70, vx:0, vy:-0.3, life:90, max:90, type:'text', txt: type==='rapid'?'⚡ RAPID POWERUP!':'◈ SPREAD POWERUP!', color: type==='rapid'?'#38bdf8':'#e879f9' });
+  const txtMap={ rapid:'⚡ RAPID!', spread:'◈ SPREAD!', life:'♥ LIFE!', nuke:'☢ NUKE!' };
+  const colMap={ rapid:'#38bdf8', spread:'#e879f9', life:'#4ade80', nuke:'#fb923c' };
+  state.particles.push({ x:W/2, y:70, vx:0, vy:-0.3, life:90, max:90, type:'text', txt: txtMap[type]||'POWERUP!', color: colMap[type]||'#fff' });
 }
 
 function checkPowerupMilestone(){
@@ -201,11 +209,30 @@ function update(dt, dtNorm){
     if(pu.life<=0){ state.powerups.splice(i,1); continue; }
     // collect
     if(state.running){ const dx=ship.x-pu.x, dy=ship.y-pu.y; if(dx*dx+dy*dy < (pu.r+ship.r)*(pu.r+ship.r)){ 
-      // activate 10s
-      state.active[pu.type]=10000;
-      state.score+=50;
-      explode(pu.x,pu.y,16, pu.type==='rapid' ? '#38bdf8' : '#e879f9', 18);
-      state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:60, max:60, type:'text', txt: pu.type==='rapid'?'RAPID 2x!':'SPREAD 3x!', color: pu.type==='rapid'?'#38bdf8':'#e879f9' });
+      if(pu.type==='rapid' || pu.type==='spread'){
+        state.active[pu.type]=10000;
+        state.score+=50;
+        explode(pu.x,pu.y,16, pu.type==='rapid' ? '#38bdf8' : '#e879f9', 18);
+        state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:60, max:60, type:'text', txt: pu.type==='rapid'?'RAPID 2x!':'SPREAD 3x!', color: pu.type==='rapid'?'#38bdf8':'#e879f9' });
+      } else if(pu.type==='life'){
+        if(state.lives<5) state.lives++;
+        state.score+=50;
+        explode(pu.x,pu.y,20, '#4ade80', 22);
+        state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:70, max:70, type:'text', txt:'+1 LIFE!', color:'#4ade80' });
+      } else if(pu.type==='nuke'){
+        // destroy all asteroids in frame
+        let nuked=0;
+        for(let k=state.asteroids.length-1;k>=0;k--){
+          const a=state.asteroids[k];
+          addScore(a);
+          explode(a.x,a.y,a.r, '#fb923c', Math.floor(a.r/2));
+          state.asteroids.splice(k,1);
+          nuked++;
+        }
+        state.score+=100;
+        explode(pu.x,pu.y,40, '#fb923c', 30);
+        state.particles.push({ x:W/2, y:H/2, vx:0, vy:0, life:90, max:90, type:'text', txt:`NUKE! ${nuked} DESTROYED +100`, color:'#fb923c' });
+      }
       state.powerups.splice(i,1);
     } }
   }
@@ -246,18 +273,23 @@ function draw(){
     const alpha = Math.min(1, pu.life/60);
     ctx.save(); ctx.translate(pu.x,pu.y); ctx.rotate(pu.rot); ctx.globalAlpha=alpha;
     const isRapid = pu.type==='rapid';
-    ctx.shadowColor=isRapid?'#38bdf8':'#e879f9'; ctx.shadowBlur=18*pulse;
-    ctx.strokeStyle=isRapid?'#38bdf8':'#e879f9'; ctx.lineWidth=2;
-    // outer glow ring
+    const isSpread = pu.type==='spread';
+    const isLife = pu.type==='life';
+    const isNuke = pu.type==='nuke';
+    let col, bg, icon, label;
+    if(isRapid){ col='#38bdf8'; bg='rgba(56,189,248,0.2)'; icon='⚡'; label='RAPID'; }
+    else if(isSpread){ col='#e879f9'; bg='rgba(232,121,249,0.2)'; icon='◈'; label='SPREAD'; }
+    else if(isLife){ col='#4ade80'; bg='rgba(74,222,128,0.22)'; icon='♥'; label='LIFE'; }
+    else { col='#fb923c'; bg='rgba(251,146,60,0.22)'; icon='☢'; label='NUKE'; }
+    ctx.shadowColor=col; ctx.shadowBlur=18*pulse;
+    ctx.strokeStyle=col; ctx.lineWidth=2;
     ctx.beginPath(); ctx.arc(0,0, pu.r + 6*Math.sin(pu.pulse*3), 0, Math.PI*2); ctx.stroke();
-    // inner icon
-    ctx.fillStyle=isRapid?'rgba(56,189,248,0.2)':'rgba(232,121,249,0.2)';
+    ctx.fillStyle=bg;
     ctx.beginPath(); ctx.arc(0,0, pu.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     ctx.shadowBlur=0;
-    ctx.fillStyle='#fff'; ctx.font=`bold ${isRapid?16:14}px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(isRapid?'⚡':'◈', 0, 1);
-    // label
-    ctx.font='9px monospace'; ctx.fillStyle=isRapid?'#38bdf8':'#e879f9'; ctx.fillText(isRapid?'RAPID':'SPREAD', 0, pu.r+14);
+    ctx.fillStyle='#fff'; ctx.font=`bold ${isRapid||isLife?16:14}px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(icon, 0, 1);
+    ctx.font='9px monospace'; ctx.fillStyle=col; ctx.fillText(label, 0, pu.r+14);
     ctx.restore();
   }
   // bullets
