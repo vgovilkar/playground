@@ -23,6 +23,7 @@
   .pup-badge { padding:6px 12px; border-radius:999px; font-size:12px; font-weight:bold; backdrop-filter:blur(8px); border:1px solid; display:flex; align-items:center; gap:6px; }
   .pup-rapid { background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.5); color:#38bdf8; box-shadow:0 0 12px rgba(56,189,248,0.3); }
   .pup-spread { background:rgba(232,121,249,0.15); border-color:rgba(232,121,249,0.5); color:#e879f9; box-shadow:0 0 12px rgba(232,121,249,0.3); }
+  #muteBtn { position:absolute; top:14px; right:14px; z-index:25; width:36px; height:36px; border-radius:50%; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.5); color:#fff; font-size:16px; cursor:pointer; backdrop-filter:blur(6px); pointer-events:auto; }
 </style>
 </head>
 <body>
@@ -34,6 +35,7 @@
 <div id="powerups"></div>
 <div id="touchNote"></div>
 <div id="tapIndicator"></div>
+<button id="muteBtn" title="Toggle sound">🔊</button>
 <div id="center">
   <h1>ASTEROIDS</h1>
   <p id="instrMobile" style="font-size:14px; line-height:1.6; display:none"><span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ Rapid ◈ Spread ♥ Life ☢ Nuke</span></p>
@@ -56,6 +58,55 @@ const ship={ x:0,y:0, angle:-Math.PI/2, vx:0,vy:0, r:14, inv:0, thrusting:false,
 const levelUi=document.getElementById('level'), scoreUi=document.getElementById('score'), livesUi=document.getElementById('lives'), statsUi=document.getElementById('stats'), center=document.getElementById('center'), highTxt=document.getElementById('highScoreTxt');
 
 let high=parseInt(localStorage.getItem('asteroids_high')||'0'); highTxt.textContent=high?`HIGH ${high}`:'No high score yet';
+
+// --- Audio (Web Audio API, no external files) ---
+let audioCtx=null, muted=false, thrustOsc=null, thrustGain=null, thrustPlaying=false;
+function initAudio(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+}
+function playTone(freq, type, vol, dur, slideTo){
+  if(!audioCtx||muted) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, audioCtx.currentTime+dur);
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+dur);
+  o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+dur);
+}
+function playShoot(){ playTone(880,'square',0.22,0.12,180); }
+function playExplode(isBig){ if(!audioCtx||muted) return; const f=isBig?120:180; playTone(f,'sawtooth',0.35, isBig?0.35:0.22, 20); setTimeout(()=>playTone(f*1.5,'triangle',0.15,0.15,30), 30); }
+function playPowerup(type){
+  if(!audioCtx||muted) return;
+  if(type==='rapid'){ playTone(440,'sine',0.3,0.15,660); setTimeout(()=>playTone(660,'sine',0.25,0.2,880),80); }
+  else if(type==='spread'){ playTone(330,'sine',0.3,0.15,495); setTimeout(()=>playTone(495,'sine',0.25,0.15,660),100); setTimeout(()=>playTone(660,'sine',0.2,0.2,880),200); }
+  else if(type==='life'){ playTone(523,'sine',0.35,0.18,659); setTimeout(()=>playTone(659,'sine',0.3,0.18,784),120); setTimeout(()=>playTone(784,'sine',0.3,0.3,1046),240); }
+  else if(type==='nuke'){ playTone(110,'sawtooth',0.4,0.6,20); setTimeout(()=>playTone(220,'square',0.3,0.4,40),100); setTimeout(()=>playTone(55,'triangle',0.5,0.8,10),0); }
+}
+function playHit(){ playTone(120,'square',0.25,0.18,40); }
+function updateThrustSound(){
+  if(!audioCtx) return;
+  if(ship.thrusting && state.running && !muted){
+    if(!thrustPlaying){
+      thrustOsc=audioCtx.createOscillator(); thrustGain=audioCtx.createGain();
+      thrustOsc.type='sawtooth'; thrustOsc.frequency.value=70; thrustGain.gain.value=0;
+      thrustOsc.connect(thrustGain); thrustGain.connect(audioCtx.destination); thrustOsc.start(); thrustPlaying=true;
+    }
+    thrustGain.gain.setTargetAtTime(0.12, audioCtx.currentTime, 0.06);
+    if(thrustOsc) thrustOsc.frequency.setTargetAtTime(70+Math.random()*10, audioCtx.currentTime, 0.1);
+  } else {
+    if(thrustPlaying && thrustGain){
+      thrustGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.12);
+      setTimeout(()=>{ if(thrustOsc){ try{thrustOsc.stop();}catch{} thrustOsc=null; } thrustPlaying=false; },180);
+    }
+  }
+}
+document.getElementById('muteBtn').onclick=()=>{
+  muted=!muted;
+  document.getElementById('muteBtn').textContent=muted?'🔇':'🔊';
+  if(!muted) initAudio();
+  if(muted && thrustPlaying && thrustGain){ thrustGain.gain.value=0; }
+};
 
 function resetShip(){ ship.x=W/2; ship.y=H/2; ship.vx=0; ship.vy=0; ship.angle=-Math.PI/2; ship.inv=180; }
 function wrap(o){ if(o.x<-50)o.x=W+50; if(o.x>W+50)o.x=-50; if(o.y<-50)o.y=H+50; if(o.y>H+50)o.y=-50; }
@@ -158,6 +209,7 @@ function updateKeys(dtNorm){
       state.bullets.push({ x: ship.x + Math.cos(ang)*ship.r, y: ship.y + Math.sin(ang)*ship.r, vx: Math.cos(ang)*7 + ship.vx*0.3, vy: Math.sin(ang)*7 + ship.vy*0.3, life:60 });
     }
     ship.cooldown=baseCooldown;
+    playShoot();
   }
   // friction + max speed cap — fix mobile "speeding up"
   const friction = ship.thrusting ? 0.99 : 0.985;
@@ -195,10 +247,10 @@ function update(dt, dtNorm){
 
   // asteroids - framerate independent movement
   for(let i=state.asteroids.length-1;i>=0;i--){ const a=state.asteroids[i]; a.x+=a.vx*dtNorm; a.y+=a.vy*dtNorm; a.rot+=a.rotV*dtNorm; wrap(a); if(a.hitFlash>0) a.hitFlash-=dtNorm; // bullet hits
-    for(let j=state.bullets.length-1;j>=0;j--){ const b=state.bullets[j]; const dx=b.x-a.x, dy=b.y-a.y; if(dx*dx+dy*dy < a.r*a.r){ state.bullets.splice(j,1); a.hp--; a.hitFlash=6; explode(b.x,b.y,4, a.maxHp>2?'#f87171':'#38bdf8', 3); if(a.hp<=0){ addScore(a); explode(a.x,a.y,a.r, a.maxHp>2?'#fb7185':'#e2e8f0', Math.floor(a.r/2.5)); // split smaller
+    for(let j=state.bullets.length-1;j>=0;j--){ const b=state.bullets[j]; const dx=b.x-a.x, dy=b.y-a.y; if(dx*dx+dy*dy < a.r*a.r){ state.bullets.splice(j,1); a.hp--; a.hitFlash=6; explode(b.x,b.y,4, a.maxHp>2?'#f87171':'#38bdf8', 3); if(a.hp<=0){ addScore(a); explode(a.x,a.y,a.r, a.maxHp>2?'#fb7185':'#e2e8f0', Math.floor(a.r/2.5)); playExplode(a.r>30); // split smaller
       if(a.r>16){ const kids= a.r>30?3:2; for(let k=0;k<kids;k++){ const nr=Math.max(9, a.r*0.52); const nang=Math.random()*Math.PI*2; const nspd= (Math.random()*1+0.6)*(1+state.level*0.05); state.asteroids.push({ x:a.x + Math.cos(nang)*10, y:a.y + Math.sin(nang)*10, vx: a.vx*0.5 + Math.cos(nang)*nspd, vy: a.vy*0.5 + Math.sin(nang)*nspd, r:nr, hp: Math.max(1, Math.floor(a.maxHp*0.6)), maxHp: Math.max(1, Math.floor(a.maxHp*0.6)), poly:randPoly(nr,1), rot:Math.random()*Math.PI*2, rotV:(Math.random()-0.5)*0.08, hitFlash:0 }); } } state.asteroids.splice(i,1); break; } } }
     // ship collision
-    if(state.running && ship.inv<=0){ const dx=ship.x-a.x, dy=ship.y-a.y; if(dx*dx+dy*dy < (a.r+ship.r)*(a.r+ship.r)*0.7){ state.lives--; explode(ship.x,ship.y, ship.r, '#ffffff', 24); resetShip(); state.particles.push({ x:W/2, y:H/2, vx:0, vy:0, life:90, max:90, type:'text', txt: state.lives>0?`HIT! -1 LIFE`:`DESTROYED`, color:'#fb7185' }); if(state.lives<=0){ gameOver(); } break; } }
+    if(state.running && ship.inv<=0){ const dx=ship.x-a.x, dy=ship.y-a.y; if(dx*dx+dy*dy < (a.r+ship.r)*(a.r+ship.r)*0.7){ state.lives--; explode(ship.x,ship.y, ship.r, '#ffffff', 24); playHit(); resetShip(); state.particles.push({ x:W/2, y:H/2, vx:0, vy:0, life:90, max:90, type:'text', txt: state.lives>0?`HIT! -1 LIFE`:`DESTROYED`, color:'#fb7185' }); if(state.lives<=0){ gameOver(); } break; } }
   }
 
   // powerups - floating and collection
@@ -209,6 +261,7 @@ function update(dt, dtNorm){
     if(pu.life<=0){ state.powerups.splice(i,1); continue; }
     // collect
     if(state.running){ const dx=ship.x-pu.x, dy=ship.y-pu.y; if(dx*dx+dy*dy < (pu.r+ship.r)*(pu.r+ship.r)){ 
+      playPowerup(pu.type);
       if(pu.type==='rapid' || pu.type==='spread'){
         state.active[pu.type]=10000;
         state.score+=50;
@@ -220,7 +273,6 @@ function update(dt, dtNorm){
         explode(pu.x,pu.y,20, '#4ade80', 22);
         state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:70, max:70, type:'text', txt:'+1 LIFE!', color:'#4ade80' });
       } else if(pu.type==='nuke'){
-        // destroy all asteroids in frame
         let nuked=0;
         for(let k=state.asteroids.length-1;k>=0;k--){
           const a=state.asteroids[k];
@@ -326,23 +378,27 @@ function loop(t){
   if(!last) last=t;
   const dt=Math.min(33, t-last); const dtNorm=dt/16.666; last=t;
   fpsAcc+=1000/Math.max(dt,1); fpsCount++; if(fpsCount>30){ state.fps=Math.round(fpsAcc/fpsCount); fpsAcc=0; fpsCount=0; }
-  if(state.running){ updateKeys(dtNorm); update(dt, dtNorm); }
+  if(state.running){ updateKeys(dtNorm); update(dt, dtNorm); updateThrustSound(); }
   draw();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
 function startGame(){
+  initAudio();
   state.running=true; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:0, spread:0}; state.nextPowerupScore=400; state.lastSpawn=performance.now(); state.spawnInterval=2000;
   resetShip(); for(let i=0;i<3;i++) spawnAsteroid(false, 22+Math.random()*14);
   center.classList.add('hidden');
   document.getElementById('powerups').innerHTML='';
+  playTone(220,'sine',0.2,0.2,440);
 }
 function gameOver(){
   state.running=false;
+  if(thrustPlaying && thrustGain){ try{ thrustGain.gain.value=0; }catch{} }
+  playExplode(true);
   if(state.score>high){ high=state.score; localStorage.setItem('asteroids_high', high); highTxt.textContent=`NEW HIGH ${high}!`; } else highTxt.textContent=`HIGH ${high} • SCORE ${state.score}`;
   document.querySelector('#center h1').textContent='GAME OVER';
-  document.querySelector('#center p').innerHTML=`<span style="color:#facc15">Score ${state.score}</span> • Level ${state.level}<br>Time ${Math.floor(state.time/1000)}s • Next PU ${state.nextPowerupScore}<br>Max HP ${1+Math.floor(state.level*0.4)} • Rate ${(1000/state.spawnInterval*60).toFixed(1)}/m`;
+  document.querySelector('#center p').innerHTML=`<span style="color:#facc15">Score ${state.score}</span> • Level ${state.level}<br>Time ${Math.floor(state.time/1000)}s • Next PU ${state.nextPowerupScore}<br>Max HP ${1+Math.floor(state.level*0.25)} • Rate ${(1000/state.spawnInterval*60).toFixed(1)}/m`;
   document.getElementById('startBtn').textContent='↻ REPLAY';
   center.classList.remove('hidden');
 }
