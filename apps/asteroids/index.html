@@ -450,17 +450,35 @@ function draw(){
   // ship with powerup aura
   
   if(state.running || state.lives>0){
-    // powerup auras - rapid/spread persist till death, shield shows hits
+    // powerup auras - distinct from immunity (white/blue) - rapid=yellow dash, spread=magenta ticks, shield=blue segmented
     if(state.active.rapid || state.active.spread || state.active.shield>0){
       ctx.save(); ctx.translate(ship.x,ship.y);
-      if(state.active.rapid){ ctx.strokeStyle='rgba(56,189,248,0.5)'; ctx.lineWidth=2; ctx.shadowColor='#38bdf8'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(0,0, ship.r+12+Math.sin(state.time*0.01)*3, 0, Math.PI*2); ctx.stroke(); }
-      if(state.active.spread){ ctx.strokeStyle='rgba(232,121,249,0.5)'; ctx.lineWidth=2; ctx.shadowColor='#e879f9'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(0,0, ship.r+18+Math.cos(state.time*0.012)*3, 0, Math.PI*2); ctx.stroke(); }
+      if(state.active.rapid){
+        // rapid - yellow fast dashed ring, distinct from immunity cyan
+        ctx.strokeStyle='rgba(250,204,21,0.75)'; ctx.lineWidth=1.5; ctx.shadowColor='#facc15'; ctx.shadowBlur=10;
+        ctx.setLineDash([5,4]);
+        ctx.beginPath(); ctx.arc(0,0, ship.r+10+Math.sin(state.time*0.02)*2, 0, Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]);
+        // inner speed tick
+        ctx.strokeStyle='rgba(250,204,21,0.4)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.arc(0,0, ship.r+6, state.time*0.02, state.time*0.02+1.2); ctx.stroke();
+      }
+      if(state.active.spread){
+        // spread - magenta 3 ticks showing 3-way, not full circle like immunity
+        ctx.strokeStyle='rgba(232,121,249,0.8)'; ctx.lineWidth=2; ctx.shadowColor='#e879f9'; ctx.shadowBlur=12;
+        for(const off of [-0.26,0,0.26]){
+          const a=off;
+          ctx.beginPath(); ctx.arc(0,0, ship.r+16, a-0.18, a+0.18); ctx.stroke();
+          // small dot at spread direction
+          ctx.fillStyle='rgba(232,121,249,0.9)'; ctx.beginPath(); ctx.arc(Math.cos(a)*(ship.r+16), Math.sin(a)*(ship.r+16), 2, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.shadowBlur=0;
+      }
       if(state.active.shield>0){
         const hits=state.active.shield;
-        ctx.strokeStyle='rgba(96,165,250,0.7)'; ctx.lineWidth=2; ctx.shadowColor='#60a5fa'; ctx.shadowBlur=16;
-        // draw segmented shield based on hits left
+        ctx.strokeStyle='rgba(96,165,250,0.8)'; ctx.lineWidth=2.2; ctx.shadowColor='#60a5fa'; ctx.shadowBlur=16;
         for(let s=0;s<hits;s++){
-          ctx.beginPath(); ctx.arc(0,0, ship.r+22+s*4, (s*2.1)-0.3, (s*2.1)+1.8); ctx.stroke();
+          ctx.beginPath(); ctx.arc(0,0, ship.r+22+s*5, (s*2.1)-0.35, (s*2.1)+1.9); ctx.stroke();
         }
       }
       ctx.restore();
@@ -469,7 +487,8 @@ function draw(){
     const flick= ship.inv>0 && Math.floor(ship.inv/6)%2===0;
     if(!flick){ ctx.strokeStyle='#ffffff'; ctx.lineWidth=2; ctx.shadowColor='#38bdf8'; ctx.shadowBlur=12; ctx.beginPath(); ctx.moveTo(ship.r,0); ctx.lineTo(-ship.r*0.7, -ship.r*0.7); ctx.lineTo(-ship.r*0.4,0); ctx.lineTo(-ship.r*0.7, ship.r*0.7); ctx.closePath(); ctx.stroke(); if(ship.thrusting){ ctx.strokeStyle='#fb7185'; ctx.shadowColor='#fb7185'; ctx.beginPath(); ctx.moveTo(-ship.r*0.4, -4); ctx.lineTo(-ship.r*1.4 + (Math.random()*6),0); ctx.lineTo(-ship.r*0.4,4); ctx.stroke(); } }
     ctx.restore();
-    if(ship.inv>0){ ctx.strokeStyle=`rgba(56,189,248,${ship.inv/180})`; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(ship.x,ship.y, ship.r+10+ (180-ship.inv)/10,0,Math.PI*2); ctx.stroke(); }
+    // immunity - white thin circle, distinct from powerup colors (yellow rapid, magenta spread, blue shield)
+    if(ship.inv>0){ ctx.strokeStyle=`rgba(255,255,255,${0.2+ship.inv/300})`; ctx.lineWidth=1; ctx.shadowColor='#ffffff'; ctx.shadowBlur=8; ctx.beginPath(); ctx.arc(ship.x,ship.y, ship.r+10+ (180-ship.inv)/12,0,Math.PI*2); ctx.stroke(); ctx.shadowBlur=0; }
   }
   // particles
   for(const p of state.particles){
