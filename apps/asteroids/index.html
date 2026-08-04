@@ -66,8 +66,8 @@ function randPoly(radius, irregularity){ const n=7+Math.floor(Math.random()*5); 
 
 function spawnAsteroid(edge=true, forcedR=null){
   const level=state.level;
-  const baseR=forcedR|| (30+Math.random()*40 + level*0.5);
-  const hp = Math.max(1, Math.floor(1 + level*0.25 + Math.random()*level*0.2 + (baseR>48?1:0)));
+  const baseR=forcedR|| (18+Math.random()*26 + level*0.4);
+  const hp = Math.max(1, Math.floor(1 + level*0.25 + Math.random()*level*0.2 + (baseR>34?1:0)));
   const speed = (0.55 + Math.random()*0.9 + level*0.06) * (0.7+Math.random()*0.4);
   let x,y,ang;
   if(edge){ const side=Math.floor(Math.random()*4); if(side===0){x=-60; y=Math.random()*H; ang=Math.random()*0.8-0.4} else if(side===1){x=W+60; y=Math.random()*H; ang=Math.PI+Math.random()*0.8-0.4} else if(side===2){x=Math.random()*W; y=-60; ang=Math.PI/2+Math.random()*0.8-0.4} else {x=Math.random()*W; y=H+60; ang=-Math.PI/2+Math.random()*0.8-0.4} } else { x=ship.x + (Math.random()>0.5?1:-1)*(200+Math.random()*W*0.3); y=ship.y + (Math.random()>0.5?1:-1)*(200+Math.random()*H*0.3); ang=Math.random()*Math.PI*2; }
@@ -189,8 +189,8 @@ function update(dt, dtNorm){
 
   // asteroids - framerate independent movement
   for(let i=state.asteroids.length-1;i>=0;i--){ const a=state.asteroids[i]; a.x+=a.vx*dtNorm; a.y+=a.vy*dtNorm; a.rot+=a.rotV*dtNorm; wrap(a); if(a.hitFlash>0) a.hitFlash-=dtNorm; // bullet hits
-    for(let j=state.bullets.length-1;j>=0;j--){ const b=state.bullets[j]; const dx=b.x-a.x, dy=b.y-a.y; if(dx*dx+dy*dy < a.r*a.r){ state.bullets.splice(j,1); a.hp--; a.hitFlash=6; explode(b.x,b.y,4, a.maxHp>2?'#f87171':'#38bdf8', 3); if(a.hp<=0){ addScore(a); explode(a.x,a.y,a.r, a.maxHp>2?'#fb7185':'#e2e8f0', Math.floor(a.r/2.5)); // split
-      if(a.r>22){ const kids= a.r>40?3:2; for(let k=0;k<kids;k++){ const nr=a.r*0.55; const nang=Math.random()*Math.PI*2; const nspd= (Math.random()*1+0.6)*(1+state.level*0.05); state.asteroids.push({ x:a.x + Math.cos(nang)*10, y:a.y + Math.sin(nang)*10, vx: a.vx*0.5 + Math.cos(nang)*nspd, vy: a.vy*0.5 + Math.sin(nang)*nspd, r:nr, hp: Math.max(1, Math.floor(a.maxHp*0.6)), maxHp: Math.max(1, Math.floor(a.maxHp*0.6)), poly:randPoly(nr,1), rot:Math.random()*Math.PI*2, rotV:(Math.random()-0.5)*0.08, hitFlash:0 }); } } state.asteroids.splice(i,1); break; } } }
+    for(let j=state.bullets.length-1;j>=0;j--){ const b=state.bullets[j]; const dx=b.x-a.x, dy=b.y-a.y; if(dx*dx+dy*dy < a.r*a.r){ state.bullets.splice(j,1); a.hp--; a.hitFlash=6; explode(b.x,b.y,4, a.maxHp>2?'#f87171':'#38bdf8', 3); if(a.hp<=0){ addScore(a); explode(a.x,a.y,a.r, a.maxHp>2?'#fb7185':'#e2e8f0', Math.floor(a.r/2.5)); // split smaller
+      if(a.r>16){ const kids= a.r>30?3:2; for(let k=0;k<kids;k++){ const nr=Math.max(9, a.r*0.52); const nang=Math.random()*Math.PI*2; const nspd= (Math.random()*1+0.6)*(1+state.level*0.05); state.asteroids.push({ x:a.x + Math.cos(nang)*10, y:a.y + Math.sin(nang)*10, vx: a.vx*0.5 + Math.cos(nang)*nspd, vy: a.vy*0.5 + Math.sin(nang)*nspd, r:nr, hp: Math.max(1, Math.floor(a.maxHp*0.6)), maxHp: Math.max(1, Math.floor(a.maxHp*0.6)), poly:randPoly(nr,1), rot:Math.random()*Math.PI*2, rotV:(Math.random()-0.5)*0.08, hitFlash:0 }); } } state.asteroids.splice(i,1); break; } } }
     // ship collision
     if(state.running && ship.inv<=0){ const dx=ship.x-a.x, dy=ship.y-a.y; if(dx*dx+dy*dy < (a.r+ship.r)*(a.r+ship.r)*0.7){ state.lives--; explode(ship.x,ship.y, ship.r, '#ffffff', 24); resetShip(); state.particles.push({ x:W/2, y:H/2, vx:0, vy:0, life:90, max:90, type:'text', txt: state.lives>0?`HIT! -1 LIFE`:`DESTROYED`, color:'#fb7185' }); if(state.lives<=0){ gameOver(); } break; } }
   }
@@ -302,7 +302,7 @@ requestAnimationFrame(loop);
 
 function startGame(){
   state.running=true; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:0, spread:0}; state.nextPowerupScore=500; state.lastSpawn=performance.now(); state.spawnInterval=2000;
-  resetShip(); for(let i=0;i<3;i++) spawnAsteroid(false, 40+Math.random()*20);
+  resetShip(); for(let i=0;i<3;i++) spawnAsteroid(false, 22+Math.random()*14);
   center.classList.add('hidden');
   document.getElementById('powerups').innerHTML='';
 }
