@@ -396,8 +396,8 @@ function update(dt, dtNorm){
     } }
   }
 
-  // pulse powerup - emits every 3s till death
-  if(state.running && state.active.pulse && performance.now()-state.lastPulse > 3000){
+  // pulse powerup - emits every 2s till death
+  if(state.running && state.active.pulse && performance.now()-state.lastPulse > 2000){
     state.pulses.push({ x:ship.x, y:ship.y, r:0, maxR:180, life:26, maxLife:26 });
     state.lastPulse=performance.now();
     // sound
@@ -437,7 +437,7 @@ function update(dt, dtNorm){
   if(state.active.rapid) html+=`<div class="pup-badge pup-rapid">⚡ RAPID</div>`;
   if(state.active.spread) html+=`<div class="pup-badge pup-spread">◈ SPREAD</div>`;
   if(state.active.shield>0) html+=`<div class="pup-badge" style="background:rgba(96,165,250,0.15);border-color:rgba(96,165,250,0.5);color:#60a5fa;box-shadow:0 0 12px rgba(96,165,250,0.3)">🛡️ SHIELD ${state.active.shield}</div>`;
-  if(state.active.pulse) html+=`<div class="pup-badge" style="background:rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.5);color:#a78bfa;box-shadow:0 0 12px rgba(167,139,250,0.3)">💫 PULSE 3s</div>`;
+  if(state.active.pulse) html+=`<div class="pup-badge" style="background:rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.5);color:#a78bfa;box-shadow:0 0 12px rgba(167,139,250,0.3)">💫 PULSE 2s</div>`;
   puDiv.innerHTML=html;
 }
 
