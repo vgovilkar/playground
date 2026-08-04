@@ -420,7 +420,7 @@ function draw(){
     if(a.maxHp>1){ ctx.shadowBlur=0; ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(-a.r, -a.r-12, a.r*2, 4); ctx.fillStyle= hpPct<0.4?'#ef4444':'#22c55e'; ctx.fillRect(-a.r, -a.r-12, a.r*2*hpPct, 4); ctx.fillStyle='#fff'; ctx.font='10px monospace'; ctx.textAlign='center'; ctx.fillText(`${a.hp}`,0,-a.r-18); }
     ctx.restore();
   }
-  // powerups
+  // powerups - shield distinct shape vs nuke circle
   for(const pu of state.powerups){
     const pulse = Math.sin(pu.pulse*2)*0.15+1;
     const alpha = Math.min(1, pu.life/60);
@@ -428,21 +428,43 @@ function draw(){
     const isRapid = pu.type==='rapid';
     const isSpread = pu.type==='spread';
     const isLife = pu.type==='life';
+    const isShield = pu.type==='shield';
     const isNuke = pu.type==='nuke';
     let col, bg, icon, label;
     if(isRapid){ col='#38bdf8'; bg='rgba(56,189,248,0.2)'; icon='⚡'; label='RAPID'; }
     else if(isSpread){ col='#e879f9'; bg='rgba(232,121,249,0.2)'; icon='◈'; label='SPREAD'; }
     else if(isLife){ col='#4ade80'; bg='rgba(74,222,128,0.22)'; icon='♥'; label='LIFE'; }
+    else if(isShield){ col='#60a5fa'; bg='rgba(96,165,250,0.25)'; icon='🛡'; label='SHIELD'; }
     else { col='#fb923c'; bg='rgba(251,146,60,0.22)'; icon='☢'; label='NUKE'; }
     ctx.shadowColor=col; ctx.shadowBlur=18*pulse;
     ctx.strokeStyle=col; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(0,0, pu.r + 6*Math.sin(pu.pulse*3), 0, Math.PI*2); ctx.stroke();
-    ctx.fillStyle=bg;
-    ctx.beginPath(); ctx.arc(0,0, pu.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    if(isShield){
+      // shield shape - pointed bottom, distinct from nuke circle
+      const r=pu.r + 6*Math.sin(pu.pulse*3);
+      ctx.beginPath();
+      ctx.moveTo(-r*0.85, -r*0.6);
+      ctx.lineTo(r*0.85, -r*0.6);
+      ctx.lineTo(r*0.75, r*0.2);
+      ctx.lineTo(0, r*1.15);
+      ctx.lineTo(-r*0.75, r*0.2);
+      ctx.closePath(); ctx.stroke();
+      ctx.fillStyle=bg;
+      ctx.beginPath();
+      ctx.moveTo(-pu.r*0.85, -pu.r*0.6);
+      ctx.lineTo(pu.r*0.85, -pu.r*0.6);
+      ctx.lineTo(pu.r*0.75, pu.r*0.2);
+      ctx.lineTo(0, pu.r*1.15);
+      ctx.lineTo(-pu.r*0.75, pu.r*0.2);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(0,0, pu.r + 6*Math.sin(pu.pulse*3), 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle=bg;
+      ctx.beginPath(); ctx.arc(0,0, pu.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    }
     ctx.shadowBlur=0;
-    ctx.fillStyle='#fff'; ctx.font=`bold ${isRapid||isLife?16:14}px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#fff'; ctx.font=`bold ${isRapid||isLife||isShield?16:14}px monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(icon, 0, 1);
-    ctx.font='9px monospace'; ctx.fillStyle=col; ctx.fillText(label, 0, pu.r+14);
+    ctx.font='9px monospace'; ctx.fillStyle=col; ctx.fillText(label, 0, pu.r+18);
     ctx.restore();
   }
   // bullets
