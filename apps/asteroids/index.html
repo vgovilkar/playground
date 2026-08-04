@@ -338,10 +338,10 @@ function update(dt, dtNorm){
         state.awaitingRespawn=true;
         state.running=false;
         ship.thrusting=false;
-        document.getElementById('center').querySelector('h1').textContent='DESTROYED';
-        document.getElementById('center').querySelector('h1').style.color='#fb7185';
-        document.getElementById('center').querySelector('p').innerHTML=`<span style="color:#fb7185">${state.lives} lives left</span><br><span style="font-size:12px; opacity:0.6">Tap to respawn</span>`;
-        document.getElementById('startBtn').textContent=`▶ RESPAWN`;
+        document.getElementById('center').querySelector('h1').innerHTML=`<span style="font-size:20px; letter-spacing:0.1em; color:#fb7185">DESTROYED</span><br><span style="font-size:52px; color:#4ade80; text-shadow:0 0 20px rgba(74,222,128,0.5); line-height:1.1">${'♥'.repeat(state.lives)}</span><br><span style="font-size:14px; color:#4ade80">${state.lives} ${state.lives===1?'LIFE':'LIVES'} LEFT</span>`;
+        document.getElementById('center').querySelector('h1').style.color='#fff';
+        document.getElementById('center').querySelector('p').innerHTML=`<span style="font-size:11px; opacity:0.5">Game not over • Powerups cleared</span>`;
+        document.getElementById('startBtn').textContent=`▶ CONTINUE`;
         document.getElementById('startBtn').onclick=doRespawn;
         document.getElementById('center').classList.remove('hidden');
       }
