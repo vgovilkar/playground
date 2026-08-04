@@ -41,6 +41,7 @@
   <p id="instrMobile" style="font-size:14px; line-height:1.6; display:none"><span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢ 💫</span></p>
   <p id="instrPC" style="font-size:14px; line-height:1.6; display:none"><span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢ 💫</span></p>
   <button class="primary" id="startBtn">▶ PLAY</button>
+  <button class="primary" id="whatsappBtn" style="display:none; background:#128C7E; border-color:#25D366; box-shadow:0 0 20px rgba(37,211,102,0.35); margin-top:10px; font-size:13px; padding:10px 20px;">↗ Share score on WhatsApp</button>
   <p id="highScoreTxt" style="margin-top:18px;font-size:12px;color:#facc15"></p>
   <p style="margin-top:12px;font-size:11px"><a href="../../" style="color:#64748b">← playground</a> • <a href="../hello/" style="color:#64748b">hello demo</a></p>
 </div>
@@ -343,6 +344,7 @@ function update(dt, dtNorm){
         document.getElementById('center').querySelector('p').innerHTML=`<span style="font-size:11px; opacity:0.5">Game not over • Powerups cleared</span>`;
         document.getElementById('startBtn').textContent=`▶ CONTINUE`;
         document.getElementById('startBtn').onclick=doRespawn;
+        document.getElementById('whatsappBtn').style.display='none';
         document.getElementById('center').classList.remove('hidden');
       }
       break;
@@ -604,6 +606,7 @@ function startGame(){
   const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢ 💫</span>`;
   const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢ 💫</span>`;
   highTxt.textContent=high?`HIGH ${high}`:'No high score yet'; highTxt.style.fontSize=''; highTxt.style.color='#facc15';
+  document.getElementById('whatsappBtn').style.display='none';
   for(let i=0;i<3;i++) spawnAsteroid(false, 22+Math.random()*14);
   center.classList.add('hidden');
   document.getElementById('powerups').innerHTML='';
@@ -618,6 +621,7 @@ function doRespawn(){
   center.classList.add('hidden');
   document.getElementById('startBtn').onclick=()=>{ if(state.awaitingRespawn) doRespawn(); else startGame(); };
   document.getElementById('startBtn').textContent='▶ PLAY';
+  document.getElementById('whatsappBtn').style.display='none';
   document.querySelector('#center h1').textContent='ASTEROIDS INFINITE';
   document.querySelector('#center h1').style.color='#fff';
   const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢ 💫</span>`;
@@ -648,6 +652,14 @@ function gameOver(){
   if(secondP) secondP.style.display='none';
   document.getElementById('startBtn').textContent='↻ REPLAY';
   document.getElementById('startBtn').onclick=startGame;
+  // WhatsApp share - prominent score via link
+  const waBtn=document.getElementById('whatsappBtn');
+  if(waBtn){
+    waBtn.style.display='inline-block';
+    const shareText=`I scored ${state.score} in Asteroids Infinite! 🚀 Level ${state.level} • ${Math.floor(state.time/1000)}s survived • Can you beat it? Play here: https://www.vaibhavgovilkar.com/playground/apps/asteroids/`;
+    const waUrl=`https://wa.me/?text=${encodeURIComponent(shareText)}`;
+    waBtn.onclick=()=>{ window.open(waUrl, '_blank'); };
+  }
   center.classList.remove('hidden');
 }
 
