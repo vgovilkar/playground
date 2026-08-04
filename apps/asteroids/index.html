@@ -159,14 +159,26 @@ function addScore(asteroid){
   checkPowerupMilestone();
 }
 
+const POWERUP_UNLOCKS=[
+  {score:0, type:'rapid'},
+  {score:800, type:'shield'},
+  {score:1500, type:'life'},
+  {score:2500, type:'spread'},
+  {score:4000, type:'nuke'}
+];
+function getUnlockedTypes(){
+  return POWERUP_UNLOCKS.filter(u=>state.score>=u.score).map(u=>u.type);
+}
+
 function spawnPowerup(type=null){
+  const unlocked=getUnlockedTypes();
+  if(unlocked.length===0) return;
   if(!type){
-    const r=Math.random();
-    if(r<0.28) type='rapid';
-    else if(r<0.56) type='spread';
-    else if(r<0.72) type='life';
-    else if(r<0.86) type='shield';
-    else type='nuke';
+    // equally likely among unlocked
+    type=unlocked[Math.floor(Math.random()*unlocked.length)];
+  } else {
+    // if requested type not yet unlocked, don't spawn
+    if(!unlocked.includes(type)) return;
   }
   const x = 80 + Math.random()*(W-160);
   const y = 80 + Math.random()*(H-240);
@@ -177,7 +189,22 @@ function spawnPowerup(type=null){
   state.particles.push({ x:W/2, y:70, vx:0, vy:-0.3, life:90, max:90, type:'text', txt: txtMap[type]||'POWERUP!', color: colMap[type]||'#fff' });
 }
 
+let lastUnlockCount=0;
+function checkUnlocks(){
+  const unlocked=getUnlockedTypes();
+  if(unlocked.length>lastUnlockCount){
+    for(let i=lastUnlockCount;i<unlocked.length;i++){
+      const u=POWERUP_UNLOCKS[i];
+      const names={ rapid:'⚡ RAPID FIRE', shield:'🛡️ SHIELD (3 hits)', life:'♥ LIFE', spread:'◈ SPREAD 3-way', nuke:'☢ NUKE' };
+      state.particles.push({ x:W/2, y:H/2-40, vx:0, vy:-0.6, life:140, max:140, type:'text', txt:`UNLOCKED: ${names[u.type]||u.type.toUpperCase()}!`, color:'#facc15' });
+      // extra flash
+      for(let k=0;k<16;k++) state.particles.push({ x:W/2, y:H/2, vx:(Math.random()-0.5)*3, vy:(Math.random()-0.5)*3, life:30, max:30, type:'dot', color:'#facc15', size:2 });
+    }
+    lastUnlockCount=unlocked.length;
+  }
+}
 function checkPowerupMilestone(){
+  checkUnlocks();
   while(state.score >= state.nextPowerupScore){
     if(Math.random() < 0.65){
       spawnPowerup();
@@ -472,6 +499,7 @@ requestAnimationFrame(loop);
 function startGame(){
   initAudio();
   state.running=true; state.awaitingRespawn=false; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:false, spread:false, shield:0}; state.nextPowerupScore=400; state.lastSpawn=performance.now(); state.spawnInterval=2000;
+  lastUnlockCount=1; // rapid unlocked at 0
   resetShip();
   // restore start screen instructions
   document.querySelector('#center h1').textContent='ASTEROIDS';
