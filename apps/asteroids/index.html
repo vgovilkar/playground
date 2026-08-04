@@ -32,12 +32,12 @@
   <div id="stats">AST: 0 | FPS: 60</div>
 </div>
 <div id="powerups"></div>
-<div id="touchNote">MOBILE: TAP ANYWHERE TO MOVE • PC: WASD / ARROWS • AUTO-FIRING</div>
+<div id="touchNote"></div>
 <div id="tapIndicator"></div>
 <div id="center">
   <h1>ASTEROIDS</h1>
-  <p style="font-size:14px; line-height:1.6"><span style="color:#38bdf8">Mobile:</span> Tap anywhere to turn & thrust<br><span style="color:#e2e8f0">PC:</span> WASD / Arrow keys to move</p>
-  <p style="font-size:11px; opacity:0.5; margin-top:8px">Auto-firing • Collect ⚡ ◈ powerups</p>
+  <p id="instrMobile" style="font-size:14px; line-height:1.6; display:none"><span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:12px; opacity:0.7">Auto-firing • Collect ⚡ ◈</span></p>
+  <p id="instrPC" style="font-size:14px; line-height:1.6; display:none"><span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:12px; opacity:0.7">Auto-firing • Collect powerups</span></p>
   <button class="primary" id="startBtn">▶ PLAY</button>
   <p id="highScoreTxt" style="margin-top:18px;font-size:12px;color:#facc15"></p>
   <p style="margin-top:12px;font-size:11px"><a href="../../" style="color:#64748b">← playground</a> • <a href="../hello/" style="color:#64748b">hello demo</a></p>
@@ -364,6 +364,25 @@ canvas.addEventListener('mouseup',e=>{
   if(e.touches===undefined) clearThrust();
 });
 canvas.addEventListener('mouseleave',()=>{ mouseDown=false; state.touch.thrust=false; clearThrust(); });
+
+// Platform detection - show only relevant instructions
+function updatePlatformUI(){
+  const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints>0 || innerWidth<=768;
+  const mob=document.getElementById('instrMobile');
+  const pc=document.getElementById('instrPC');
+  const note=document.getElementById('touchNote');
+  if(isMobile){
+    if(mob) mob.style.display='block';
+    if(pc) pc.style.display='none';
+    if(note) note.textContent='TAP ANYWHERE TO MOVE • AUTO-FIRING';
+  } else {
+    if(mob) mob.style.display='none';
+    if(pc) pc.style.display='block';
+    if(note) note.textContent='WASD / ARROWS TO MOVE • AUTO-FIRING';
+  }
+}
+updatePlatformUI();
+addEventListener('resize', updatePlatformUI);
 
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) { /* pause not implemented */ } });
 </script>
