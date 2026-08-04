@@ -24,6 +24,13 @@
   .pup-rapid { background:rgba(56,189,248,0.15); border-color:rgba(56,189,248,0.5); color:#38bdf8; box-shadow:0 0 12px rgba(56,189,248,0.3); }
   .pup-spread { background:rgba(232,121,249,0.15); border-color:rgba(232,121,249,0.5); color:#e879f9; box-shadow:0 0 12px rgba(232,121,249,0.3); }
   #muteBtn { position:absolute; top:14px; right:14px; z-index:25; width:36px; height:36px; border-radius:50%; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.5); color:#fff; font-size:16px; cursor:pointer; backdrop-filter:blur(6px); pointer-events:auto; }
+  #store { margin-top:16px; width:100%; max-width:360px; text-align:left; background:rgba(0,0,0,0.4); border:1px solid #1e293b; border-radius:12px; padding:12px; display:none; }
+  #store h3 { font-size:13px; letter-spacing:0.1em; opacity:0.9; margin-bottom:8px; text-align:center; }
+  .store-item { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:8px; margin:6px 0; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); cursor:pointer; }
+  .store-item.disabled { opacity:0.35; pointer-events:none; }
+  .store-item.selected { background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.4); }
+  .store-item input { margin-right:10px; }
+  .store-cost { font-size:11px; color:#facc15; }
 </style>
 </head>
 <body>
@@ -43,6 +50,12 @@
   <button class="primary" id="startBtn">▶ PLAY</button>
   <button class="primary" id="whatsappBtn" style="display:none; background:#25D366; border-color:#25D366; color:#fff; box-shadow:0 0 20px rgba(37,211,102,0.35); margin-top:10px; font-size:14px; padding:11px 22px; display:none; align-items:center; gap:8px; justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M12.04 2c-5.46 0-9.91 4.44-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.2 4.74 1.2 5.46 0 9.91-4.44 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.01a7.9 7.9 0 0 1-4.02-1.1l-.29-.17-3.12.82.83-3.04-.19-.31a7.92 7.92 0 0 1-1.22-4.2c0-4.36 3.55-7.91 7.91-7.91 2.11 0 4.1.82 5.59 2.31a7.86 7.86 0 0 1 2.32 5.6c0 4.36-3.55 7.91-7.91 7.91zm4.39-5.92c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.92-1.18-.71-.63-1.19-1.4-1.33-1.64-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.41-.54-.42h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2 0 1.18.86 2.32.98 2.48.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z"/></svg> Share on Whatsapp</button>
   <p id="highScoreTxt" style="margin-top:18px;font-size:12px;color:#facc15"></p>
+  <div id="store">
+    <h3>🛒 STORE — Spend score for next life</h3>
+    <div id="storeScore" style="font-size:11px; opacity:0.7; text-align:center; margin-bottom:8px"></div>
+    <div id="storeList"></div>
+    <div id="storeTotal" style="font-size:12px; text-align:center; margin-top:8px; color:#facc15"></div>
+  </div>
 </div>
 
 <script>
@@ -51,7 +64,8 @@ let W,H,DPR;
 function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight; canvas.width=W*DPR; canvas.height=H*DPR; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); }
 resize(); addEventListener('resize',resize);
 
-const state={ running:false, awaitingRespawn:false, score:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], pulses:[], powerups:[], active:{rapid:false, spread:false, shield:0, pulse:false}, nextPowerupScore:400, lastPulse:0, keys:{}, touch:{thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
+const state={ running:false, awaitingRespawn:false, score:0, maxScore:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], pulses:[], powerups:[], active:{rapid:false, spread:false, shield:0, pulse:false}, nextPowerupScore:400, lastPulse:0, pendingNuke:false, keys:{}, touch:{thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
+const STORE_COSTS={ rapid:500, shield:1000, life:2000, spread:1500, nuke:2000, pulse:4000 };
 
 const ship={ x:0,y:0, angle:-Math.PI/2, vx:0,vy:0, r:14, inv:0, thrusting:false, cooldown:0 };
 
@@ -156,6 +170,7 @@ function addScore(asteroid){
   const mult = 1 + state.level*0.10 + state.time/180000;
   const pts = Math.floor(base*mult);
   state.score+=pts;
+  state.maxScore=Math.max(state.maxScore, state.score);
   state.particles.push({ x:asteroid.x, y:asteroid.y, vx:(Math.random()-0.5)*1.2, vy:-1.2, life:60, max:60, type:'text', txt:`+${pts}`, color:'#facc15' });
   checkPowerupMilestone();
 }
@@ -169,7 +184,8 @@ const POWERUP_UNLOCKS=[
   {score:7500, type:'pulse'}
 ];
 function getUnlockedTypes(){
-  return POWERUP_UNLOCKS.filter(u=>state.score>=u.score).map(u=>u.type);
+  // idempotent - based on maxScore ever, not current score (spending doesn't relock)
+  return POWERUP_UNLOCKS.filter(u=>state.maxScore>=u.score).map(u=>u.type);
 }
 
 function spawnPowerup(type=null){
@@ -283,8 +299,8 @@ function update(dt, dtNorm){
   state.time+=dt;
   // powerups now last till death, not timer - no decrement
 
-  // Difficulty now scales by SCORE, more gradual
-  const newLevel=1+Math.floor(state.score/1200);
+  // Difficulty scales by maxScore, not current (spending doesn't drop level)
+  const newLevel=1+Math.floor(state.maxScore/1200);
   if(newLevel!==state.level){ state.level=newLevel; state.particles.push({ x:W/2, y:100, vx:0, vy:-0.5, life:120, max:120, type:'text', txt:`LEVEL ${state.level}`, color:'#38bdf8' }); }
   const cfg=levelConfig(state.level);
   state.spawnInterval=cfg.spawnInterval;
@@ -338,13 +354,15 @@ function update(dt, dtNorm){
         state.awaitingRespawn=true;
         state.running=false;
         ship.thrusting=false;
-        document.getElementById('center').querySelector('h1').innerHTML=`<span style="font-size:20px; letter-spacing:0.1em; color:#fb7185">DESTROYED</span><br><span style="font-size:52px; color:#4ade80; text-shadow:0 0 20px rgba(74,222,128,0.5); line-height:1.1">${'♥'.repeat(state.lives)}</span><br><span style="font-size:14px; color:#4ade80">${state.lives} ${state.lives===1?'LIFE':'LIVES'} LEFT</span>`;
+        document.getElementById('center').querySelector('h1').innerHTML=`<span style="font-size:20px; letter-spacing:0.1em; color:#fb7185">DESTROYED</span><br><span style="font-size:52px; color:#4ade80; text-shadow:0 0 20px rgba(74,222,128,0.5); line-height:1.1">${'♥'.repeat(Math.min(state.lives,5))}</span><br><span style="font-size:14px; color:#4ade80">${state.lives} ${state.lives===1?'LIFE':'LIVES'} LEFT</span>`;
         document.getElementById('center').querySelector('h1').style.color='#fff';
-        document.getElementById('center').querySelector('p').innerHTML=`<span style="font-size:11px; opacity:0.5">Game not over • Powerups cleared</span>`;
+        document.getElementById('center').querySelector('p').innerHTML=`<span style="font-size:11px; opacity:0.5">Powerups cleared • Spend score for next life</span>`;
         document.getElementById('startBtn').textContent=`▶ CONTINUE`;
         document.getElementById('startBtn').onclick=doRespawn;
         document.getElementById('whatsappBtn').style.display='none';
         document.getElementById('center').classList.remove('hidden');
+        // show store for next respawn
+        setTimeout(()=>{ showStore(); }, 50);
       }
       break;
     } }
@@ -606,6 +624,7 @@ function startGame(){
   const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢ 💫</span>`;
   highTxt.textContent=high?`HIGH ${high}`:'No high score yet'; highTxt.style.fontSize=''; highTxt.style.color='#facc15';
   document.getElementById('whatsappBtn').style.display='none';
+  document.getElementById('store').style.display='none';
   for(let i=0;i<3;i++) spawnAsteroid(false, 22+Math.random()*14);
   center.classList.add('hidden');
   document.getElementById('powerups').innerHTML='';
@@ -614,22 +633,115 @@ function startGame(){
 }
 function doRespawn(){
   if(!state.awaitingRespawn) return;
+  // apply store purchases if any
+  const selected=window._storeSelected||{};
+  let total=0;
+  for(const t in selected) if(selected[t]) total+=STORE_COSTS[t]||0;
+  if(total>0 && total<=state.score){
+    state.score-=total;
+    // maxScore stays, so level doesn't drop
+    if(selected.life){ state.lives = Math.min(99, state.lives+1); }
+    if(selected.shield){ state.active.shield=3; }
+    if(selected.rapid){ state.active.rapid=true; }
+    if(selected.spread){ state.active.spread=true; }
+    if(selected.pulse){ state.active.pulse=true; state.lastPulse=performance.now(); }
+    if(selected.nuke){ state.pendingNuke=true; }
+  }
+  window._storeSelected={};
+  document.getElementById('store').style.display='none';
+
   state.awaitingRespawn=false;
   state.running=true;
   resetShip();
+  // if nuke purchased, trigger immediate nuke on respawn
+  if(state.pendingNuke){
+    state.pendingNuke=false;
+    setTimeout(()=>{
+      for(let k=state.asteroids.length-1;k>=0;k--){
+        const a=state.asteroids[k];
+        addScore(a);
+        explode(a.x,a.y,a.r, '#fb923c', Math.floor(a.r/2));
+        state.asteroids.splice(k,1);
+      }
+      explode(ship.x,ship.y,50, '#fb923c', 35);
+      playPowerup('nuke');
+    }, 100);
+  }
   center.classList.add('hidden');
   document.getElementById('startBtn').onclick=()=>{ if(state.awaitingRespawn) doRespawn(); else startGame(); };
   document.getElementById('startBtn').textContent='▶ PLAY';
   document.getElementById('whatsappBtn').style.display='none';
+  document.getElementById('store').style.display='none';
   document.querySelector('#center h1').textContent='ASTEROIDS INFINITE';
   document.querySelector('#center h1').style.color='#fff';
   const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢ 💫</span>`;
   const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢ 💫</span>`;
   updatePlatformUI();
 }
+
+function showStore(){
+  const unlocked=getUnlockedTypes();
+  const storeDiv=document.getElementById('store');
+  const listDiv=document.getElementById('storeList');
+  const scoreDiv=document.getElementById('storeScore');
+  const totalDiv=document.getElementById('storeTotal');
+  window._storeSelected=window._storeSelected||{};
+  // reset if new death
+  if(!state.awaitingRespawn) window._storeSelected={};
+
+  const icons={ rapid:'⚡', shield:'🛡️', life:'♥', spread:'◈', nuke:'☢', pulse:'💫' };
+  const names={ rapid:'Rapid Fire', shield:'Shield (3 hits)', life:'Extra Life', spread:'Spread 3-way', nuke:'Nuke Field', pulse:'Pulse Ring' };
+
+  let html='';
+  for(const t of unlocked){
+    const cost=STORE_COSTS[t]||0;
+    const canAfford = (state.score >= cost);
+    const selected = !!window._storeSelected[t];
+    html+=`<label class="store-item ${!canAfford&&!selected?'disabled':''} ${selected?'selected':''}" data-type="${t}">
+      <span><input type="checkbox" ${selected?'checked':''} data-type="${t}" ${!canAfford&&!selected?'disabled':''}> ${icons[t]||''} ${names[t]||t}</span>
+      <span class="store-cost">${cost} pts</span>
+    </label>`;
+  }
+  if(unlocked.length===0) html=`<div style="font-size:12px;opacity:0.5;text-align:center">No powerups unlocked yet (0 pts Rapid at start)</div>`;
+  listDiv.innerHTML=html;
+  function updateTotals(){
+    let total=0;
+    for(const tt in window._storeSelected) if(window._storeSelected[tt]) total+=STORE_COSTS[tt]||0;
+    const remain=state.score-total;
+    scoreDiv.textContent=`Score: ${state.score} • Max: ${state.maxScore} • After: ${remain}`;
+    totalDiv.textContent= total>0 ? `Total: ${total} pts — Remaining: ${remain}` : `Select powerups for next life • Score ${state.score}`;
+    // disable unaffordable
+    for(const el of listDiv.querySelectorAll('.store-item')){
+      const tp=el.dataset.type;
+      const c=STORE_COSTS[tp]||0;
+      const sel=!!window._storeSelected[tp];
+      let wouldBe=total;
+      if(!sel) wouldBe+=c;
+      if(wouldBe>state.score && !sel) el.classList.add('disabled');
+      else el.classList.remove('disabled');
+      el.querySelector('input').disabled = (wouldBe>state.score && !sel);
+    }
+    document.getElementById('startBtn').disabled = total>state.score;
+  }
+  listDiv.querySelectorAll('input').forEach(inp=>{
+    inp.onchange=(e)=>{
+      const tp=e.target.dataset.type;
+      window._storeSelected[tp]=e.target.checked;
+      // update selected class
+      const item=e.target.closest('.store-item');
+      if(item) item.classList.toggle('selected', e.target.checked);
+      updateTotals();
+    };
+  });
+  scoreDiv.textContent=`Score: ${state.score} • Max: ${state.maxScore}`;
+  totalDiv.textContent=`Select powerups for next life`;
+  storeDiv.style.display='block';
+  updateTotals();
+}
 function gameOver(){
   state.running=false;
   state.awaitingRespawn=false;
+  document.getElementById('store').style.display='none';
   if(thrustPlaying && thrustGain){ try{ thrustGain.gain.value=0; }catch{} }
   bigDeathExplosion(W/2, H/2);
   playDeath();
