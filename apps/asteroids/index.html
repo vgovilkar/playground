@@ -103,12 +103,12 @@ function spawnPowerup(type=null){
 
 function checkPowerupMilestone(){
   while(state.score >= state.nextPowerupScore){
-    if(Math.random() < 0.30){
+    if(Math.random() < 0.65){
       spawnPowerup();
     } else {
       state.particles.push({ x:W/2, y:50, vx:0, vy:-0.2, life:60, max:60, type:'text', txt:`${state.nextPowerupScore} PTS`, color:'#64748b' });
     }
-    state.nextPowerupScore+=500;
+    state.nextPowerupScore+=400;
   }
 }
 
@@ -301,7 +301,7 @@ function loop(t){
 requestAnimationFrame(loop);
 
 function startGame(){
-  state.running=true; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:0, spread:0}; state.nextPowerupScore=500; state.lastSpawn=performance.now(); state.spawnInterval=2000;
+  state.running=true; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:0, spread:0}; state.nextPowerupScore=400; state.lastSpawn=performance.now(); state.spawnInterval=2000;
   resetShip(); for(let i=0;i<3;i++) spawnAsteroid(false, 22+Math.random()*14);
   center.classList.add('hidden');
   document.getElementById('powerups').innerHTML='';
