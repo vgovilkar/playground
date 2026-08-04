@@ -38,8 +38,8 @@
 <button id="muteBtn" title="Toggle sound">🔊</button>
 <div id="center">
   <h1>ASTEROIDS</h1>
-  <p id="instrMobile" style="font-size:14px; line-height:1.6; display:none"><span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ Rapid ◈ Spread ♥ Life ☢ Nuke</span></p>
-  <p id="instrPC" style="font-size:14px; line-height:1.6; display:none"><span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • Collect ⚡ ◈ ♥ ☢ powerups</span></p>
+  <p id="instrMobile" style="font-size:14px; line-height:1.6; display:none"><span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span></p>
+  <p id="instrPC" style="font-size:14px; line-height:1.6; display:none"><span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span></p>
   <button class="primary" id="startBtn">▶ PLAY</button>
   <p id="highScoreTxt" style="margin-top:18px;font-size:12px;color:#facc15"></p>
   <p style="margin-top:12px;font-size:11px"><a href="../../" style="color:#64748b">← playground</a> • <a href="../hello/" style="color:#64748b">hello demo</a></p>
@@ -51,7 +51,7 @@ let W,H,DPR;
 function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight; canvas.width=W*DPR; canvas.height=H*DPR; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); }
 resize(); addEventListener('resize',resize);
 
-const state={ running:false, awaitingRespawn:false, score:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], powerups:[], active:{rapid:0, spread:0}, nextPowerupScore:400, keys:{}, touch:{thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
+const state={ running:false, awaitingRespawn:false, score:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], powerups:[], active:{rapid:false, spread:false, shield:0}, nextPowerupScore:400, keys:{}, touch:{thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
 
 const ship={ x:0,y:0, angle:-Math.PI/2, vx:0,vy:0, r:14, inv:0, thrusting:false, cooldown:0 };
 
@@ -81,6 +81,7 @@ function playPowerup(type){
   if(type==='rapid'){ playTone(440,'sine',0.3,0.15,660); setTimeout(()=>playTone(660,'sine',0.25,0.2,880),80); }
   else if(type==='spread'){ playTone(330,'sine',0.3,0.15,495); setTimeout(()=>playTone(495,'sine',0.25,0.15,660),100); setTimeout(()=>playTone(660,'sine',0.2,0.2,880),200); }
   else if(type==='life'){ playTone(523,'sine',0.35,0.18,659); setTimeout(()=>playTone(659,'sine',0.3,0.18,784),120); setTimeout(()=>playTone(784,'sine',0.3,0.3,1046),240); }
+  else if(type==='shield'){ playTone(330,'sine',0.3,0.2,440); setTimeout(()=>playTone(440,'sine',0.3,0.2,550),100); setTimeout(()=>playTone(550,'sine',0.35,0.4,660),200); }
   else if(type==='nuke'){ playTone(110,'sawtooth',0.4,0.6,20); setTimeout(()=>playTone(220,'square',0.3,0.4,40),100); setTimeout(()=>playTone(55,'triangle',0.5,0.8,10),0); }
 }
 function playHit(){ playTone(120,'square',0.25,0.18,40); }
@@ -161,17 +162,18 @@ function addScore(asteroid){
 function spawnPowerup(type=null){
   if(!type){
     const r=Math.random();
-    if(r<0.30) type='rapid';
-    else if(r<0.60) type='spread';
-    else if(r<0.80) type='life';
+    if(r<0.28) type='rapid';
+    else if(r<0.56) type='spread';
+    else if(r<0.72) type='life';
+    else if(r<0.86) type='shield';
     else type='nuke';
   }
   const x = 80 + Math.random()*(W-160);
   const y = 80 + Math.random()*(H-240);
   const ang=Math.random()*Math.PI*2;
   state.powerups.push({ x,y, vx: Math.cos(ang)*0.3, vy: Math.sin(ang)*0.3, r:18, type, life: 720, maxLife:720, rot:0, pulse:0 });
-  const txtMap={ rapid:'⚡ RAPID!', spread:'◈ SPREAD!', life:'♥ LIFE!', nuke:'☢ NUKE!' };
-  const colMap={ rapid:'#38bdf8', spread:'#e879f9', life:'#4ade80', nuke:'#fb923c' };
+  const txtMap={ rapid:'⚡ RAPID!', spread:'◈ SPREAD!', life:'♥ LIFE!', shield:'🛡️ SHIELD!', nuke:'☢ NUKE!' };
+  const colMap={ rapid:'#38bdf8', spread:'#e879f9', life:'#4ade80', shield:'#60a5fa', nuke:'#fb923c' };
   state.particles.push({ x:W/2, y:70, vx:0, vy:-0.3, life:90, max:90, type:'text', txt: txtMap[type]||'POWERUP!', color: colMap[type]||'#fff' });
 }
 
@@ -226,10 +228,10 @@ function updateKeys(dtNorm){
     if(state.keys['ArrowUp']||state.keys['w']){ ship.thrusting=true; const thrust=0.18*dtNorm; ship.vx+=Math.cos(ship.angle)*thrust; ship.vy+=Math.sin(ship.angle)*thrust; if(Math.random()<0.6) state.particles.push({ x: ship.x - Math.cos(ship.angle)*ship.r, y: ship.y - Math.sin(ship.angle)*ship.r, vx: ship.vx + (Math.random()-0.5)*2 - Math.cos(ship.angle)*2, vy: ship.vy + (Math.random()-0.5)*2 - Math.sin(ship.angle)*2, life:12, max:12, type:'dot', color:'#fb7185', size:2 }); } else if(!state.touch.active) ship.thrusting=false;
   }
 
-  // continuous auto-fire - reduced default rate 9->14, rapid powerup 14->6
-  const baseCooldown = state.active.rapid>0 ? 6 : 14;
+  // continuous auto-fire - rapid persists till death
+  const baseCooldown = state.active.rapid ? 6 : 14;
   if(state.running && ship.cooldown<=0){
-    const angles = state.active.spread>0 ? [-0.26, 0, 0.26] : [0];
+    const angles = state.active.spread ? [-0.26, 0, 0.26] : [0];
     for(const off of angles){
       const ang = ship.angle + off;
       state.bullets.push({ x: ship.x + Math.cos(ang)*ship.r, y: ship.y + Math.sin(ang)*ship.r, vx: Math.cos(ang)*7 + ship.vx*0.3, vy: Math.sin(ang)*7 + ship.vy*0.3, life:60 });
@@ -250,10 +252,7 @@ function updateKeys(dtNorm){
 
 function update(dt, dtNorm){
   state.time+=dt;
-  if(state.active.rapid>0) state.active.rapid-=dt;
-  if(state.active.spread>0) state.active.spread-=dt;
-  if(state.active.rapid<0) state.active.rapid=0;
-  if(state.active.spread<0) state.active.spread=0;
+  // powerups now last till death, not timer - no decrement
 
   // Difficulty now scales by SCORE, more gradual
   const newLevel=1+Math.floor(state.score/1200);
@@ -275,17 +274,34 @@ function update(dt, dtNorm){
   for(let i=state.asteroids.length-1;i>=0;i--){ const a=state.asteroids[i]; a.x+=a.vx*dtNorm; a.y+=a.vy*dtNorm; a.rot+=a.rotV*dtNorm; wrap(a); if(a.hitFlash>0) a.hitFlash-=dtNorm; // bullet hits
     for(let j=state.bullets.length-1;j>=0;j--){ const b=state.bullets[j]; const dx=b.x-a.x, dy=b.y-a.y; if(dx*dx+dy*dy < a.r*a.r){ state.bullets.splice(j,1); a.hp--; a.hitFlash=6; explode(b.x,b.y,4, a.maxHp>2?'#f87171':'#38bdf8', 3); if(a.hp<=0){ addScore(a); explode(a.x,a.y,a.r, a.maxHp>2?'#fb7185':'#e2e8f0', Math.floor(a.r/2.5)); playExplode(a.r>30); // split smaller
       if(a.r>16){ const kids= a.r>30?3:2; for(let k=0;k<kids;k++){ const nr=Math.max(9, a.r*0.52); const nang=Math.random()*Math.PI*2; const nspd= (Math.random()*1+0.6)*(1+state.level*0.05); state.asteroids.push({ x:a.x + Math.cos(nang)*10, y:a.y + Math.sin(nang)*10, vx: a.vx*0.5 + Math.cos(nang)*nspd, vy: a.vy*0.5 + Math.sin(nang)*nspd, r:nr, hp: Math.max(1, Math.floor(a.maxHp*0.6)), maxHp: Math.max(1, Math.floor(a.maxHp*0.6)), poly:randPoly(nr,1), rot:Math.random()*Math.PI*2, rotV:(Math.random()-0.5)*0.08, hitFlash:0 }); } } state.asteroids.splice(i,1); break; } } }
-    // ship collision - dramatic death, pause and require active respawn
+    // ship collision - shield or dramatic death
     if(state.running && ship.inv<=0 && !state.awaitingRespawn){ const dx=ship.x-a.x, dy=ship.y-a.y; if(dx*dx+dy*dy < (a.r+ship.r)*(a.r+ship.r)*0.7){
+      if(state.active.shield>0){
+        // shield absorbs hit
+        state.active.shield--;
+        addScore(a);
+        explode(a.x,a.y,a.r, '#60a5fa', Math.floor(a.r/2));
+        state.asteroids.splice(i,1);
+        // shield hit effect
+        explode(ship.x,ship.y, 20, '#60a5fa', 12);
+        state.particles.push({ x:ship.x, y:ship.y-18, vx:0, vy:-0.8, life:50, max:50, type:'text', txt: state.active.shield>0?`SHIELD ${state.active.shield}`:'SHIELD BROKEN!', color: state.active.shield>0?'#60a5fa':'#fb7185' });
+        playTone(180,'sine',0.25,0.2,90);
+        if(state.active.shield<=0){
+          state.particles.push({ x:W/2, y:H/2, vx:0, vy:0, life:70, max:70, type:'text', txt:'SHIELD DOWN!', color:'#fb7185' });
+        }
+        break;
+      }
+      // no shield - lose life, clear all powerups (last till death)
       state.lives--;
+      state.active.rapid=false;
+      state.active.spread=false;
+      state.active.shield=0;
       if(state.lives<=0){
-        // final death - bigger explosion + game over
         bigDeathExplosion(ship.x,ship.y);
         explode(ship.x,ship.y, ship.r*2, '#ffffff', 30);
         playDeath();
         gameOver();
       } else {
-        // dramatic death but pause and require respawn
         bigDeathExplosion(ship.x,ship.y);
         explode(ship.x,ship.y, ship.r*1.5, '#ffffff', 24);
         playDeath();
@@ -313,7 +329,7 @@ function update(dt, dtNorm){
     if(state.running){ const dx=ship.x-pu.x, dy=ship.y-pu.y; if(dx*dx+dy*dy < (pu.r+ship.r)*(pu.r+ship.r)){ 
       playPowerup(pu.type);
       if(pu.type==='rapid' || pu.type==='spread'){
-        state.active[pu.type]=10000;
+        state.active[pu.type]=true;
         state.score+=50;
         explode(pu.x,pu.y,16, pu.type==='rapid' ? '#38bdf8' : '#e879f9', 18);
         state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:60, max:60, type:'text', txt: pu.type==='rapid'?'RAPID 2x!':'SPREAD 3x!', color: pu.type==='rapid'?'#38bdf8':'#e879f9' });
@@ -322,6 +338,11 @@ function update(dt, dtNorm){
         state.score+=50;
         explode(pu.x,pu.y,20, '#4ade80', 22);
         state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:70, max:70, type:'text', txt:'+1 LIFE!', color:'#4ade80' });
+      } else if(pu.type==='shield'){
+        state.active.shield=3;
+        state.score+=50;
+        explode(pu.x,pu.y,20, '#60a5fa', 20);
+        state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:70, max:70, type:'text', txt:'SHIELD 3 HITS!', color:'#60a5fa' });
       } else if(pu.type==='nuke'){
         let nuked=0;
         for(let k=state.asteroids.length-1;k>=0;k--){
@@ -347,11 +368,12 @@ function update(dt, dtNorm){
   if(state.lives<=5) livesUi.textContent='♥'.repeat(state.lives)+'♡'.repeat(Math.max(0,3-state.lives));
   else livesUi.textContent='♥'+state.lives;
   statsUi.textContent=`AST: ${state.asteroids.length} | NEXT PU: ${state.nextPowerupScore}`;
-  // powerup badges
+  // powerup badges - persist till death, shield shows hits
   const puDiv=document.getElementById('powerups');
   let html='';
-  if(state.active.rapid>0) html+=`<div class="pup-badge pup-rapid">⚡ RAPID ${(state.active.rapid/1000).toFixed(1)}s</div>`;
-  if(state.active.spread>0) html+=`<div class="pup-badge pup-spread">◈ SPREAD ${(state.active.spread/1000).toFixed(1)}s</div>`;
+  if(state.active.rapid) html+=`<div class="pup-badge pup-rapid">⚡ RAPID</div>`;
+  if(state.active.spread) html+=`<div class="pup-badge pup-spread">◈ SPREAD</div>`;
+  if(state.active.shield>0) html+=`<div class="pup-badge" style="background:rgba(96,165,250,0.15);border-color:rgba(96,165,250,0.5);color:#60a5fa;box-shadow:0 0 12px rgba(96,165,250,0.3)">🛡️ SHIELD ${state.active.shield}</div>`;
   puDiv.innerHTML=html;
 }
 
@@ -401,11 +423,19 @@ function draw(){
   // ship with powerup aura
   
   if(state.running || state.lives>0){
-    // powerup auras
-    if(state.active.rapid>0 || state.active.spread>0){
+    // powerup auras - rapid/spread persist till death, shield shows hits
+    if(state.active.rapid || state.active.spread || state.active.shield>0){
       ctx.save(); ctx.translate(ship.x,ship.y);
-      if(state.active.rapid>0){ ctx.strokeStyle='rgba(56,189,248,0.5)'; ctx.lineWidth=2; ctx.shadowColor='#38bdf8'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(0,0, ship.r+12+Math.sin(state.time*0.01)*3, 0, Math.PI*2); ctx.stroke(); }
-      if(state.active.spread>0){ ctx.strokeStyle='rgba(232,121,249,0.5)'; ctx.lineWidth=2; ctx.shadowColor='#e879f9'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(0,0, ship.r+18+Math.cos(state.time*0.012)*3, 0, Math.PI*2); ctx.stroke(); }
+      if(state.active.rapid){ ctx.strokeStyle='rgba(56,189,248,0.5)'; ctx.lineWidth=2; ctx.shadowColor='#38bdf8'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(0,0, ship.r+12+Math.sin(state.time*0.01)*3, 0, Math.PI*2); ctx.stroke(); }
+      if(state.active.spread){ ctx.strokeStyle='rgba(232,121,249,0.5)'; ctx.lineWidth=2; ctx.shadowColor='#e879f9'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(0,0, ship.r+18+Math.cos(state.time*0.012)*3, 0, Math.PI*2); ctx.stroke(); }
+      if(state.active.shield>0){
+        const hits=state.active.shield;
+        ctx.strokeStyle='rgba(96,165,250,0.7)'; ctx.lineWidth=2; ctx.shadowColor='#60a5fa'; ctx.shadowBlur=16;
+        // draw segmented shield based on hits left
+        for(let s=0;s<hits;s++){
+          ctx.beginPath(); ctx.arc(0,0, ship.r+22+s*4, (s*2.1)-0.3, (s*2.1)+1.8); ctx.stroke();
+        }
+      }
       ctx.restore();
     }
     ctx.save(); ctx.translate(ship.x,ship.y); ctx.rotate(ship.angle);
@@ -441,13 +471,13 @@ requestAnimationFrame(loop);
 
 function startGame(){
   initAudio();
-  state.running=true; state.awaitingRespawn=false; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:0, spread:0}; state.nextPowerupScore=400; state.lastSpawn=performance.now(); state.spawnInterval=2000;
+  state.running=true; state.awaitingRespawn=false; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.powerups=[]; state.active={rapid:false, spread:false, shield:0}; state.nextPowerupScore=400; state.lastSpawn=performance.now(); state.spawnInterval=2000;
   resetShip();
   // restore start screen instructions
   document.querySelector('#center h1').textContent='ASTEROIDS';
   document.querySelector('#center h1').style.color='#fff';
-  const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ Rapid ◈ Spread ♥ Life ☢ Nuke</span>`;
-  const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • Collect ⚡ ◈ ♥ ☢ powerups</span>`;
+  const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span>`;
+  const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span>`;
   highTxt.textContent=high?`HIGH ${high}`:'No high score yet'; highTxt.style.fontSize=''; highTxt.style.color='#facc15';
   for(let i=0;i<3;i++) spawnAsteroid(false, 22+Math.random()*14);
   center.classList.add('hidden');
@@ -465,8 +495,8 @@ function doRespawn(){
   document.getElementById('startBtn').textContent='▶ PLAY';
   document.querySelector('#center h1').textContent='ASTEROIDS';
   document.querySelector('#center h1').style.color='#fff';
-  const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ Rapid ◈ Spread ♥ Life ☢ Nuke</span>`;
-  const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • Collect ⚡ ◈ ♥ ☢ powerups</span>`;
+  const m=document.getElementById('instrMobile'); if(m) m.innerHTML=`<span style="color:#38bdf8">Tap anywhere</span> to turn & thrust<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span>`;
+  const p=document.getElementById('instrPC'); if(p) p.innerHTML=`<span style="color:#e2e8f0">WASD / Arrow keys</span> to move<br><span style="font-size:11px; opacity:0.7">Auto-firing • ⚡ ◈ ♥ 🛡️ ☢</span>`;
   updatePlatformUI();
 }
 function gameOver(){
