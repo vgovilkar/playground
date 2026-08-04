@@ -294,8 +294,8 @@ function update(dt, dtNorm){
         ship.thrusting=false;
         document.getElementById('center').querySelector('h1').textContent='DESTROYED';
         document.getElementById('center').querySelector('h1').style.color='#fb7185';
-        document.getElementById('center').querySelector('p').innerHTML=`<span style="color:#fb7185">Ship destroyed! ${state.lives} lives left</span><br><span style="font-size:12px; opacity:0.6">Big explosion • Tap to respawn</span>`;
-        document.getElementById('startBtn').textContent=`▶ RESPAWN (${state.lives} ♥)`;
+        document.getElementById('center').querySelector('p').innerHTML=`<span style="color:#fb7185">${state.lives} lives left</span><br><span style="font-size:12px; opacity:0.6">Tap to respawn</span>`;
+        document.getElementById('startBtn').textContent=`▶ RESPAWN`;
         document.getElementById('startBtn').onclick=doRespawn;
         document.getElementById('center').classList.remove('hidden');
       }
