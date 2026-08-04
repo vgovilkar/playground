@@ -651,15 +651,82 @@ function gameOver(){
   if(secondP) secondP.style.display='none';
   document.getElementById('startBtn').textContent='↻ REPLAY';
   document.getElementById('startBtn').onclick=startGame;
-  // WhatsApp share - prominent score via link
+  // WhatsApp share with rendered high score image
   const waBtn=document.getElementById('whatsappBtn');
   if(waBtn){
     waBtn.style.display='inline-block';
-    const shareText=`I scored ${state.score} in Asteroids Infinite! 🚀 Level ${state.level} • ${Math.floor(state.time/1000)}s survived • Can you beat it? Play here: https://www.vaibhavgovilkar.com/playground/apps/asteroids/`;
-    const waUrl=`https://wa.me/?text=${encodeURIComponent(shareText)}`;
-    waBtn.onclick=()=>{ window.open(waUrl, '_blank'); };
+    waBtn.textContent='↗ Share score (image + WhatsApp)';
+    waBtn.onclick=async()=>{
+      const shareText=`I scored ${state.score} in Asteroids Infinite! 🚀 Level ${state.level} • ${Math.floor(state.time/1000)}s survived • Can you beat it? Play: https://www.vaibhavgovilkar.com/playground/apps/asteroids/`;
+      const canvas=generateShareImage();
+      try{
+        const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+        const file=new File([blob], `asteroids-${state.score}.png`, {type:'image/png'});
+        if(navigator.canShare && navigator.canShare({files:[file]})){
+          await navigator.share({ files:[file], text:shareText, title:'Asteroids Infinite High Score' });
+        } else {
+          // fallback: download image + open WhatsApp text link
+          const url=URL.createObjectURL(blob);
+          const a=document.createElement('a'); a.href=url; a.download=`asteroids-${state.score}.png`; a.click();
+          setTimeout(()=>URL.revokeObjectURL(url), 2000);
+          const waUrl=`https://wa.me/?text=${encodeURIComponent(shareText)}`;
+          window.open(waUrl, '_blank');
+        }
+      } catch(e){
+        // fallback to text only
+        const waUrl=`https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        window.open(waUrl, '_blank');
+      }
+    };
   }
   center.classList.remove('hidden');
+}
+
+function generateShareImage(){
+  const c=document.createElement('canvas');
+  c.width=1080; c.height=1920;
+  const x=c.getContext('2d');
+  // bg
+  const g=x.createRadialGradient(540,700,0,540,960,1200);
+  g.addColorStop(0,'#0e1424'); g.addColorStop(1,'#040507');
+  x.fillStyle=g; x.fillRect(0,0,1080,1920);
+  // stars
+  x.fillStyle='rgba(255,255,255,0.5)';
+  for(let i=0;i<120;i++){ const sx=(i*137.5)%1080, sy=(i*73.3*1.7)%1200; x.fillRect(sx,sy, i%3?2:3, i%3?2:3); }
+  // title
+  x.textAlign='center';
+  x.fillStyle='#ffffff'; x.font='bold 48px monospace'; x.letterSpacing='0.2em';
+  x.fillText('ASTEROIDS',540,320);
+  x.fillStyle='#38bdf8'; x.font='bold 28px monospace';
+  x.fillText('INFINITE',540,370);
+  // big score
+  x.fillStyle='#facc15'; x.shadowColor='#facc15'; x.shadowBlur=24; x.font='bold 148px monospace';
+  x.fillText(String(state.score),540,580);
+  x.shadowBlur=0;
+  x.fillStyle='rgba(226,232,240,0.6)'; x.font='22px monospace'; x.letterSpacing='0.2em';
+  x.fillText('SCORE',540,630);
+  // stats
+  x.fillStyle='#e2e8f0'; x.font='26px monospace';
+  x.fillText(`Level ${state.level} • ${Math.floor(state.time/1000)}s survived`,540,720);
+  x.fillStyle='#94a3b8'; x.font='20px monospace';
+  x.fillText(`Next powerup at ${state.nextPowerupScore} • Max HP ${1+Math.floor(state.level*0.25)}`,540,760);
+  // high score badge
+  const isNew=state.score>=high;
+  x.fillStyle=isNew?'#4ade80':'#64748b'; x.font='bold 24px monospace';
+  x.fillText(isNew?'NEW HIGH SCORE!':`HIGH SCORE: ${high}`,540,820);
+  // powerups legend
+  x.fillStyle='rgba(255,255,255,0.5)'; x.font='18px monospace';
+  x.fillText('⚡ Rapid  ◈ Spread  ♥ Life  🛡️ Shield  ☢ Nuke  💫 Pulse',540,900);
+  // ship icon
+  x.save(); x.translate(540,1100); x.rotate(-Math.PI/2);
+  x.strokeStyle='#ffffff'; x.lineWidth=4; x.shadowColor='#38bdf8'; x.shadowBlur=18;
+  x.beginPath(); x.moveTo(40,0); x.lineTo(-28,-22); x.lineTo(-16,0); x.lineTo(-28,22); x.closePath(); x.stroke();
+  x.restore();
+  // footer
+  x.shadowBlur=0;
+  x.fillStyle='rgba(100,116,139,0.8)'; x.font='20px monospace';
+  x.fillText('Play: www.vaibhavgovilkar.com/playground/apps/asteroids/',540,1820);
+  return c;
 }
 
 document.getElementById('startBtn').onclick=()=>{ if(state.awaitingRespawn) doRespawn(); else startGame(); };
