@@ -64,7 +64,7 @@ let W,H,DPR;
 function resize(){ DPR=Math.min(devicePixelRatio||1,2); W=innerWidth; H=innerHeight; canvas.width=W*DPR; canvas.height=H*DPR; canvas.style.width=W+'px'; canvas.style.height=H+'px'; ctx.setTransform(DPR,0,0,DPR,0,0); }
 resize(); addEventListener('resize',resize);
 
-const state={ running:false, awaitingRespawn:false, score:0, maxScore:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], pulses:[], powerups:[], active:{rapid:false, spread:false, shield:0, pulse:false}, nextPowerupScore:400, lastPulse:0, pendingNuke:false, keys:{}, touch:{thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
+const state={ running:false, awaitingRespawn:false, score:0, maxScore:0, lives:3, level:1, time:0, lastSpawn:0, spawnInterval:2000, asteroids:[], bullets:[], particles:[], pulses:[], powerups:[], active:{rapid:false, spread:false, shield:0, pulse:false}, used:{rapid:false, shield:false, life:false, spread:false, nuke:false, pulse:false}, nextPowerupScore:400, lastPulse:0, pendingNuke:false, keys:{}, touch:{thrust:false, tx:0, ty:0, active:false}, lastTime:0, fps:60 };
 const STORE_COSTS={ rapid:500, shield:1000, life:2000, spread:1500, nuke:2000, pulse:4000 };
 
 const ship={ x:0,y:0, angle:-Math.PI/2, vx:0,vy:0, r:14, inv:0, thrusting:false, cooldown:0 };
@@ -377,27 +377,32 @@ function update(dt, dtNorm){
     // collect
     if(state.running){ const dx=ship.x-pu.x, dy=ship.y-pu.y; if(dx*dx+dy*dy < (pu.r+ship.r)*(pu.r+ship.r)){ 
       playPowerup(pu.type);
+      state.used[pu.type]=true;
       if(pu.type==='rapid' || pu.type==='spread'){
         state.active[pu.type]=true;
         state.score+=50;
+        state.maxScore=Math.max(state.maxScore, state.score);
         explode(pu.x,pu.y,16, pu.type==='rapid' ? '#38bdf8' : '#e879f9', 18);
         state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:60, max:60, type:'text', txt: pu.type==='rapid'?'RAPID 2x!':'SPREAD 3x!', color: pu.type==='rapid'?'#38bdf8':'#e879f9' });
       } else if(pu.type==='life'){
         state.lives = Math.min(99, state.lives+1);
         state.score+=50;
+        state.maxScore=Math.max(state.maxScore, state.score);
         explode(pu.x,pu.y,20, '#4ade80', 22);
         state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:70, max:70, type:'text', txt:'+1 LIFE!', color:'#4ade80' });
       } else if(pu.type==='shield'){
         state.active.shield=3;
         state.score+=50;
+        state.maxScore=Math.max(state.maxScore, state.score);
         explode(pu.x,pu.y,20, '#60a5fa', 20);
         state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:70, max:70, type:'text', txt:'SHIELD 3 HITS!', color:'#60a5fa' });
       } else if(pu.type==='pulse'){
         state.active.pulse=true;
         state.lastPulse=performance.now();
         state.score+=50;
+        state.maxScore=Math.max(state.maxScore, state.score);
         explode(pu.x,pu.y,22, '#a78bfa', 22);
-        state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:70, max:70, type:'text', txt:'PULSE EVERY 3s!', color:'#a78bfa' });
+        state.particles.push({ x:pu.x, y:pu.y-20, vx:0, vy:-1, life:70, max:70, type:'text', txt:'PULSE EVERY 2s!', color:'#a78bfa' });
       } else if(pu.type==='nuke'){
         let nuked=0;
         for(let k=state.asteroids.length-1;k>=0;k--){
@@ -408,6 +413,7 @@ function update(dt, dtNorm){
           nuked++;
         }
         state.score+=100;
+        state.maxScore=Math.max(state.maxScore, state.score);
         explode(pu.x,pu.y,40, '#fb923c', 30);
         state.particles.push({ x:W/2, y:H/2, vx:0, vy:0, life:90, max:90, type:'text', txt:`NUKE! ${nuked} DESTROYED +100`, color:'#fb923c' });
       }
@@ -614,7 +620,7 @@ requestAnimationFrame(loop);
 
 function startGame(){
   initAudio();
-  state.running=true; state.awaitingRespawn=false; state.score=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.pulses=[]; state.powerups=[]; state.active={rapid:false, spread:false, shield:0, pulse:false}; state.nextPowerupScore=400; state.lastPulse=0; state.lastSpawn=performance.now(); state.spawnInterval=2000;
+  state.running=true; state.awaitingRespawn=false; state.score=0; state.maxScore=0; state.lives=3; state.level=1; state.time=0; state.asteroids=[]; state.bullets=[]; state.particles=[]; state.pulses=[]; state.powerups=[]; state.active={rapid:false, spread:false, shield:0, pulse:false}; state.used={rapid:false, shield:false, life:false, spread:false, nuke:false, pulse:false}; state.nextPowerupScore=400; state.lastPulse=0; state.lastSpawn=performance.now(); state.spawnInterval=2000;
   lastUnlockCount=1; // rapid unlocked at 0
   resetShip();
   // restore start screen instructions
@@ -681,19 +687,19 @@ function doRespawn(){
 
 function showStore(){
   const unlocked=getUnlockedTypes();
+  const available=unlocked.filter(t=>state.used[t]);
   const storeDiv=document.getElementById('store');
   const listDiv=document.getElementById('storeList');
   const scoreDiv=document.getElementById('storeScore');
   const totalDiv=document.getElementById('storeTotal');
   window._storeSelected=window._storeSelected||{};
-  // reset if new death
   if(!state.awaitingRespawn) window._storeSelected={};
 
   const icons={ rapid:'⚡', shield:'🛡️', life:'♥', spread:'◈', nuke:'☢', pulse:'💫' };
   const names={ rapid:'Rapid Fire', shield:'Shield (3 hits)', life:'Extra Life', spread:'Spread 3-way', nuke:'Nuke Field', pulse:'Pulse Ring' };
 
   let html='';
-  for(const t of unlocked){
+  for(const t of available){
     const cost=STORE_COSTS[t]||0;
     const canAfford = (state.score >= cost);
     const selected = !!window._storeSelected[t];
@@ -702,7 +708,10 @@ function showStore(){
       <span class="store-cost">${cost} pts</span>
     </label>`;
   }
-  if(unlocked.length===0) html=`<div style="font-size:12px;opacity:0.5;text-align:center">No powerups unlocked yet (0 pts Rapid at start)</div>`;
+  if(available.length===0){
+    if(unlocked.length===0) html=`<div style="font-size:12px;opacity:0.5;text-align:center">No powerups unlocked yet</div>`;
+    else html=`<div style="font-size:11px;opacity:0.6;text-align:center">Collect powerups in game to unlock them in store<br><span style="font-size:10px;opacity:0.5">Unlocked: ${unlocked.map(t=>icons[t]).join(' ')} but not used yet</span></div>`;
+  }
   listDiv.innerHTML=html;
   function updateTotals(){
     let total=0;
