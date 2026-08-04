@@ -187,16 +187,28 @@ function getUnlockedTypes(){
   // idempotent - based on maxScore ever, not current score (spending doesn't relock)
   return POWERUP_UNLOCKS.filter(u=>state.maxScore>=u.score).map(u=>u.type);
 }
+function getSpawnableTypes(){
+  const unlocked=getUnlockedTypes();
+  // don't spawn offensive powerups if already active - pick other available, if none eligible skip
+  return unlocked.filter(t=>{
+    if(t==='rapid' && state.active.rapid) return false;
+    if(t==='spread' && state.active.spread) return false;
+    if(t==='pulse' && state.active.pulse) return false;
+    return true;
+  });
+}
 
 function spawnPowerup(type=null){
+  const spawnable=getSpawnableTypes();
+  if(spawnable.length===0) return; // none eligible, no powerup this turn
   const unlocked=getUnlockedTypes();
-  if(unlocked.length===0) return;
   if(!type){
-    // equally likely among unlocked
-    type=unlocked[Math.floor(Math.random()*unlocked.length)];
+    // equally likely among spawnable (not all unlocked)
+    type=spawnable[Math.floor(Math.random()*spawnable.length)];
   } else {
-    // if requested type not yet unlocked, don't spawn
+    // if requested type not yet unlocked or active offensive, don't spawn
     if(!unlocked.includes(type)) return;
+    if((type==='rapid' && state.active.rapid) || (type==='spread' && state.active.spread) || (type==='pulse' && state.active.pulse)) return;
   }
   const x = 80 + Math.random()*(W-160);
   const y = 80 + Math.random()*(H-240);
