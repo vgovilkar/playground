@@ -74,7 +74,7 @@ function playTone(freq, type, vol, dur, slideTo){
   g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+dur);
   o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+dur);
 }
-function playShoot(){ playTone(880,'square',0.22,0.12,180); }
+function playShoot(){ playTone(1200,'triangle',0.07,0.07,350); }
 function playExplode(isBig){ if(!audioCtx||muted) return; const f=isBig?120:180; playTone(f,'sawtooth',0.35, isBig?0.35:0.22, 20); setTimeout(()=>playTone(f*1.5,'triangle',0.15,0.15,30), 30); }
 function playPowerup(type){
   if(!audioCtx||muted) return;
